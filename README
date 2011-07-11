@@ -2,7 +2,13 @@ Short tools for analyzing trace files from the WebServer Plugin
 in WebSphere Application Server.
 
   * scanplugin.pl
-    With LogLevel "TRACE", Report on exceptional requests (slow, marked down, bad status code)
+    With LogLevel "TRACE", Report on exceptional requests (slow, marked down,
+    bad status code).
 
   * plgstats.pl
-    With any LogLevel including "STATS", report cross-process statistics
+    With any LogLevel up-to-and-including "STATS", report cross-process statistics for
+    affinity/non-affinity requests.
+
+  * countchunks.pl
+    With LogLevel "TRACE", Add up the chunks written by the plugin, you must
+    filter the input to be a single request yourself.
