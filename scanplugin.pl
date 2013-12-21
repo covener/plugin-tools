@@ -132,13 +132,13 @@ while(<>) {
     push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
    }
 
-  if (/\[(.*?)\] (\w+) (\w+)/) { 
+  if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) { 
     $timestr = $1;
     $pid = $2;
     $tid = $3;
 
   }
-  elsif ( /\[(.*?)\] \d+\/QTMHHTTP\/\w+ (\d+) (\d+)/) { 
+  elsif ( /\[(.*?)(?:\.\d{5})?\] \d+\/QTMHHTTP\/\w+ (\d+) (\d+)/) { 
     $timestr = $1;
     $pid = $2;
     $tid = $3;
