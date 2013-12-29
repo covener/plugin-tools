@@ -84,11 +84,24 @@ while(<>) {
     push (@errorArray, $bldError) if ($addVal == 1);
    }
 
+  if (/DETAIL:    Cache-Control: (.*)/){
+    $threads{$pid . $tid}->{'cachecontrol'} = $1;
+    if ($1 =~ /Set-Cookie/i) { 
+      $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
+    }
+  }
+
   # Loading SessionIDArray with Session SetCookie info
   if (/DETAIL:    Set-Cookie: (.*)/){
   	my $itercnt = 1;
   	my $addVal = 1;
   	my $sessionID = "Set-Cookie: $1";
+    if (!defined($threads{$pid . $tid}->{'setcookies'})) { 
+      $threads{$pid . $tid}->{'setcookies'} = ($1);
+    }
+    else { 
+      $threads{$pid . $tid}->{'setcookies'} = ($threads{$pid . $tid}->{'setcookies'}, $1);
+    }
   	foreach $i (@sessionIDArray){
   		 if ($i eq $sessionID){
   		 	#print "Input: $bldError \n";
@@ -185,6 +198,9 @@ while(<>) {
                            posterror=> $threads{$pid . $tid}->{'posterror'},
                            miscerror=> $threads{$pid . $tid}->{'miscerror'},
                            status   => $threads{$pid . $tid}->{'status'},
+                           cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
+                           cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
+                           setcookies=> $threads{$pid . $tid}->{'setcookies'},
                         };
         if (defined($threads{$pid . $tid}->{'read_response_end'})) { 
           $hr->{'appserverdelay'} = $threads{$pid . $tid}->{'read_response_end'} -  
@@ -310,6 +326,23 @@ my $statLine =  "$subStatLine newRequests  $newReq";
 print "\n";
 foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
    print fmt($r);
+}
+
+print "\nInteresting cookie/cacheRequests:\n";
+
+foreach $r (@requests) { 
+   if (defined $r->{'setcookies'} && !defined($r->{'cachecontrol'})) { 
+   print "\n";
+     print fmt($r);
+     printf "\twhy: set-cookie $r->{'setcookies'} without cache-control\n";
+     printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+   }
+   elsif (defined $r->{'setcookies'} && !defined($r->{'cachecontrolsetcookie'})) { 
+   print "\n";
+     print fmt($r);
+     printf "\twhy: set-cookie $r->{'setcookies'} without cache-control setcookie CC='$r->{'cachecontrol'}'\n";
+     printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+   }
 }
 
 print "\nInteresting Requests:\n";
