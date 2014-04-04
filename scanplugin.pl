@@ -85,22 +85,40 @@ while(<>) {
    }
 
   if (/DETAIL:    Cache-Control: (.*)/){
-    $threads{$pid . $tid}->{'cachecontrol'} = $1;
-    if ($1 =~ /Set-Cookie/i) { 
+    my $var = $1;
+    chomp($var);
+    $var =~ s/\r//g;
+    $threads{$pid . $tid}->{'cachecontrol'} = $var;
+    if ($var =~ /no-cache=\"Set-Cookie/i) { 
       $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
     }
+    elsif ($var =~ /no-cache/i) { 
+      $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
+    }
+
   }
+  if (/DETAIL:    Expires: (.*)/){
+    my $var =  $1;
+    chomp($var);
+    $var =~ s/\r//g;
+    $threads{$pid . $tid}->{'expires'} = $var;
+  }
+
+
 
   # Loading SessionIDArray with Session SetCookie info
   if (/DETAIL:    Set-Cookie: (.*)/){
+    my $var =  $1;
+    chomp($var);
+    $var =~ s/\r//g;
   	my $itercnt = 1;
   	my $addVal = 1;
-  	my $sessionID = "Set-Cookie: $1";
+  	my $sessionID = "Set-Cookie: $var";
     if (!defined($threads{$pid . $tid}->{'setcookies'})) { 
-      $threads{$pid . $tid}->{'setcookies'} = ($1);
+      $threads{$pid . $tid}->{'setcookies'} = ($var);
     }
     else { 
-      $threads{$pid . $tid}->{'setcookies'} = ($threads{$pid . $tid}->{'setcookies'}, $1);
+      $threads{$pid . $tid}->{'setcookies'} = ($threads{$pid . $tid}->{'setcookies'}, $var);
     }
   	foreach $i (@sessionIDArray){
   		 if ($i eq $sessionID){
@@ -182,7 +200,7 @@ while(<>) {
   
 
   if (/websphereEndRequest: Ending the request/) { 
-    if (!defined($threads{$pid . $tid})) { 
+    if (!defined($threads{$pid . $tid}->{'time'})) { 
        print "Error, didn't see start of req that's ending at line $ln\n";
     }
     else { 
@@ -334,13 +352,21 @@ foreach $r (@requests) {
    if (defined $r->{'setcookies'} && !defined($r->{'cachecontrol'})) { 
    print "\n";
      print fmt($r);
-     printf "\twhy: set-cookie $r->{'setcookies'} without cache-control\n";
+     printf "\twhy: set-cookie ";
+     print $r->{'setcookies'};
+     printf " without cache-control\n";
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
    }
-   elsif (defined $r->{'setcookies'} && !defined($r->{'cachecontrolsetcookie'})) { 
+   elsif (defined $r->{'setcookies'} && !(defined($r->{'cachecontrolsetcookie'}) || defined($r->{'cachecontrolnocache'}))) { 
    print "\n";
      print fmt($r);
-     printf "\twhy: set-cookie $r->{'setcookies'} without cache-control setcookie CC='$r->{'cachecontrol'}'\n";
+     print "\twhy: set-cookie " .  $r->{'setcookies'} . " without cache-control no-cache, cache-contrno no-cache=setcookie.  CC= '" . $r->{'cachecontrol'}. "' \n";
+     printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+   }
+   elsif (defined $r->{'setcookies'} && defined($r->{'cachecontrolsetcookie'}) && defined($r->{'expires'})) { 
+   print "\n";
+     print fmt($r);
+     print "\twhy: set-cookie ".  $r->{'setcookies'} .  " with cc: no-cache=setcookie but ALSO expires\n";
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
    }
 }
