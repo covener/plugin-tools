@@ -89,7 +89,7 @@ while(<>) {
     chomp($var);
     $var =~ s/\r//g;
     $threads{$pid . $tid}->{'cachecontrol'} = $var;
-    if ($var =~ /no-cache=\"Set-Cookie/i) { 
+    if ($var =~ /no-cache=\"?Set-Cookie/i) { 
       $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
     }
     elsif ($var =~ /no-cache/i) { 
