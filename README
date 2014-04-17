@@ -6,8 +6,8 @@ in WebSphere Application Server.
     bad status code).
 
   * plgstats.pl
-    With any LogLevel up-to-and-including "STATS", report cross-process statistics for
-    affinity/non-affinity requests.
+    With any LogLevel up-to-and-including "STATS", report cross-process 
+    statistics for affinity/non-affinity requests.
 
   * countchunks.pl
     With LogLevel "TRACE", Add up the chunks written by the plugin, you must
