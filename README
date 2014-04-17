@@ -1,4 +1,4 @@
-Short tools for analyzing trace files from the WebServer Plugin
+Short tools related to the WebSphere WebServer Plug-in
 in WebSphere Application Server.
 
   * scanplugin.pl
@@ -12,3 +12,6 @@ in WebSphere Application Server.
   * countchunks.pl
     With LogLevel "TRACE", Add up the chunks written by the plugin, you must
     filter the input to be a single request yourself.
+
+  * linux_prereq.sh
+    Grab 32-bit and 64-bit prerequisites on RHEL.
