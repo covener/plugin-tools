@@ -15,3 +15,7 @@ in WebSphere Application Server.
 
   * linux_prereq.sh
     Grab 32-bit and 64-bit prerequisites on RHEL.
+
+  * retrievesigner.jar
+    Tiny java utility to grab the root CA from a port and either dump it to a
+    file or directly add it to plugin-key.kdb.
