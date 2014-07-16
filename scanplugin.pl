@@ -228,6 +228,13 @@ while(<>) {
           $hr->{'appserverdelay'} = -1;
         }
 
+        if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
+          print STDERR "waitforcont set $threads{$pid . $tid}->{'gotcontinue'} $threads{$pid . $tid}->{'waitforcontinue'}\n";
+          $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
+                                    $threads{$pid . $tid}->{'waitforcontinue'};
+          print STDERR "waitforcont : delay is " . $hr->{'appserverdelaycontinue'}  . "\n";
+        }
+
         push @requests, $hr;
         delete $threads{$pid . $tid};
     }
@@ -244,6 +251,21 @@ while(<>) {
          $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
   }
+
+  if (/(htrequestWrite: Waiting for the continue response)/) {
+      if (defined $threads{$pid . $tid}) {
+          print STDERR "WAITING present\n";
+          $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
+      }
+  }
+
+  if (/(DETAI.*100 Continue)/) {
+      if (defined $threads{$pid . $tid}) {
+          print STDERR "DETAIL present\n";
+          $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
+      }
+  }
+
 
   if (/serverSetFailoverStatus: Marking (\w+) down/) { 
     if (defined $threads{$pid . $tid}) { 
@@ -382,7 +404,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
    } 
 
    if (defined $r->{'posterror'}) { 
-   print "\n";
+     print "\n";
      print fmt($r);
      printf "\twhy: post error: '%s' at line %d\n", $r->{'posterror'}->{'code'}, $r->{'posterror'}->{'line'};
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
@@ -419,7 +441,8 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
      }
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
    }
-   if (!$printed && ($r->{'appserverdelay'} == -1)) {  # highlight slow requests
+
+   if (!$printed && ($r->{'appserverdelay'} == -1)) {  # no response
      print "\n";
      print fmt($r);
      printf "\twhy: no response from appserver\n";
@@ -443,6 +466,14 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
 
    }
+
+   if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .75 * $r->{'delta'}) { 
+     print "\n";
+     print fmt($r);
+     printf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
+     printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+   }
+
 
 }
 
