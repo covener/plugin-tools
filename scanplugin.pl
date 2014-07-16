@@ -229,8 +229,13 @@ while(<>) {
         }
 
         if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
-          $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
-                                    $threads{$pid . $tid}->{'waitforcontinue'};
+            $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
+                $threads{$pid . $tid}->{'waitforcontinue'};
+        }
+
+        if (defined($threads{$pid . $tid}->{'connfailure'})) { 
+            $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
+                $threads{$pid . $tid}->{'dq'};
         }
 
         push @requests, $hr;
@@ -250,36 +255,53 @@ while(<>) {
     }
   }
 
+
+  #
+  # Time waitforcontinue
+  #
+
   if (/(htrequestWrite: Waiting for the continue response)/) {
       if (defined $threads{$pid . $tid}) {
           $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
       }
   }
-
   if (/(DETAI.*100 Continue)/) {
       if (defined $threads{$pid . $tid}) {
           $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
       }
   }
 
-  if (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+  #
+  # Track conn failure, conn delay
+  #
+
+  if (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
       if (defined $threads{$pid . $tid}) {
-          $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+          $threads{$pid . $tid}->{'dq'} = str2time($timestr);
       }
   }
   if (/(.*Connection to.*ailed.*)/) { # non-block connect fail
       if (defined $threads{$pid . $tid}) {
           $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
       }
+      if (defined $threads{$pid . $tid}->{'dq'}) { 
+          $threads{$pid . $tid}->{'connfailure'} = str2time($timestr);
+      }
   }
 
+
+  if (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+      if (defined $threads{$pid . $tid}) {
+          $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+      }
+  }
   if (/serverSetFailoverStatus: Marking (\w+) down/) { 
-    if (defined $threads{$pid . $tid}) { 
-         if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
-           $threads{$pid . $tid}->{'markdowns'} = ();
-         }
-         push @{$threads{$pid . $tid}->{'markdowns'}}, { server=>$1, time=>$timestr, line=>$ln };
-    }
+      if (defined $threads{$pid . $tid}) { 
+          if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
+              $threads{$pid . $tid}->{'markdowns'} = ();
+          }
+          push @{$threads{$pid . $tid}->{'markdowns'}}, { server=>$1, time=>$timestr, line=>$ln };
+      }
   }
 
   if (/lib_htresponse: htresponseRead: Reading the response/) { 
@@ -480,7 +502,12 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
    }
 
-
+   if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .75 * $r->{'delta'}) { 
+     print "\n";
+     print fmt($r);
+     printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
+     printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+   }
 }
 
 print "\nUnfinished Requests:\n" if (scalar(keys %threads) > 0);
