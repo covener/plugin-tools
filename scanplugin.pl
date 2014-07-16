@@ -229,10 +229,8 @@ while(<>) {
         }
 
         if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
-          print STDERR "waitforcont set $threads{$pid . $tid}->{'gotcontinue'} $threads{$pid . $tid}->{'waitforcontinue'}\n";
           $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
                                     $threads{$pid . $tid}->{'waitforcontinue'};
-          print STDERR "waitforcont : delay is " . $hr->{'appserverdelaycontinue'}  . "\n";
         }
 
         push @requests, $hr;
@@ -254,18 +252,21 @@ while(<>) {
 
   if (/(htrequestWrite: Waiting for the continue response)/) {
       if (defined $threads{$pid . $tid}) {
-          print STDERR "WAITING present\n";
           $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
       }
   }
 
   if (/(DETAI.*100 Continue)/) {
       if (defined $threads{$pid . $tid}) {
-          print STDERR "DETAIL present\n";
           $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
       }
   }
 
+  if (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+      if (defined $threads{$pid . $tid}) {
+          $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+      }
+  }
 
   if (/serverSetFailoverStatus: Marking (\w+) down/) { 
     if (defined $threads{$pid . $tid}) { 
