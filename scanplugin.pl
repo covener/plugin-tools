@@ -413,7 +413,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
    }
 
    if (defined $r->{'markdowns'}) { 
-   print "\n";
+     print "\n";
      print fmt($r);
      printf "\twhy: markdowns\n";
      foreach (@{$r->{'markdowns'}}) {  
@@ -424,7 +424,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
    }
 
    if (defined($r->{'miscerror'})) {
-   print "\n";
+     print "\n";
      print fmt($r);
      printf "\twhy: misc error on line %d: '%s'\n", $r->{'miscerror'}->{'line'}, $r->{'miscerror'}->{'text'} ;
      printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
@@ -432,7 +432,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
    }
 
    if (!$printed && ($r->{'delta'} >= 5)) {  # highlight slow requests
-   print "\n";
+     print "\n";
      print fmt($r);
      if ($r->{'appserverdelay'} > (.75 * $r->{'delta'})) { 
        printf "\twhy: slow (WAS response generation)\n";
