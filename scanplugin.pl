@@ -267,6 +267,11 @@ while(<>) {
           $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
       }
   }
+  if (/(.*Connection to.*ailed.*)/) { # non-block connect fail
+      if (defined $threads{$pid . $tid}) {
+          $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+      }
+  }
 
   if (/serverSetFailoverStatus: Marking (\w+) down/) { 
     if (defined $threads{$pid . $tid}) { 
