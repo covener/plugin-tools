@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Parse a plugin log for response times and noteworth errors
+# Parse a plugin log for response times and noteworthy errors.  
+# Summarizes 1GB in about 70 seconds
 # TODO: it would be nice if it knew how to track requests that used the same backend socket.
 
 use strict;
@@ -92,7 +93,7 @@ if (/DETAIL:    Cache-Control: (.*)/){
     if ($var =~ /no-cache=\"?Set-Cookie/i) { 
         $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
     }
-    elsif ($var =~ /no-cache/i) { 
+    if ($var =~ /no-cache/i) { 
         $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
     }
 }
@@ -179,7 +180,7 @@ else {
 
 if (/ws_handle_request: Handling WebSphere request/){ 
     if (defined($threads{$pid . $tid})) { 
-        printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
+        #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
     }
     else { 
         $time = str2time($timestr);
@@ -198,7 +199,7 @@ if (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) {
 
 if (/websphereEndRequest: Ending the request/) { 
     if (!defined($threads{$pid . $tid}->{'time'})) { 
-        print STDERR "  didn't see start of req that's ending at line $ln\n";
+        # print STDERR "  didn't see start of req that's ending at line $ln\n";
     }
     else { 
         my $hr;
@@ -414,7 +415,7 @@ foreach $r (@requests) {
     elsif (defined $r->{'setcookies'} && !(defined($r->{'cachecontrolsetcookie'}) || defined($r->{'cachecontrolnocache'}))) { 
         print "\n";
         print fmt($r);
-        print "\twhy: set-cookie " .  $r->{'setcookies'} . " without cache-control no-cache, cache-contrno no-cache=setcookie.  CC= '" . $r->{'cachecontrol'}. "' \n";
+        print "\twhy: set-cookie " .  $r->{'setcookies'} . " without cache-control no-cache, cache-control no-cache=setcookie.  CC= '" . $r->{'cachecontrol'}. "' \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
     }
     elsif (defined $r->{'setcookies'} && defined($r->{'cachecontrolsetcookie'}) && defined($r->{'expires'})) { 
