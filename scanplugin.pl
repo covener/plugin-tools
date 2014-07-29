@@ -19,6 +19,12 @@
 # TODO: it would be nice if it knew how to track requests that used the same backend socket.
 # TODO: track slow POST
 
+# todo track handshake time:
+# [29/Jul/2014:11:28:47.86034] 007c0062 00000b0c - TRACE: lib_stream: openStream: setting GSK_USER_DATA (timeout=900)
+# [29/Jul/2014:11:28:57.29953] 007c0062 00000b0c - DETAIL: ws_common: websphereGetStream: Created a new stream; queue was empty, socket = 26 Local Port=48368
+
+
+
 use strict;
 use HTTP::Date; # part of LWP
 
@@ -53,132 +59,111 @@ while(<>) {
     if ($ln % 20000 == 0) { 
         print STDERR "reading line $ln...\n";
     }
-# Getting Bld version.
+
+
+    # Always grab the pid/tid and timestr
+    if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) { 
+        $timestr = $1;
+        $pid = $2;
+        $tid = $3;
+    }
+    elsif ( /\[(.*?)(?:\.\d{5})?\] \d+\/QTMHHTTP\/\w+ (\d+) (\d+)/) { 
+        $timestr = $1;
+        $pid = $2;
+        $tid = $3;
+    }
+
+
+    # Getting Bld version.
     if (/PLUGIN: Bld version: (\w+).(\w+).(\w+).(\w+)/){
-#print "1 got a build version.  $1.$2.$3.$4\n";
         $bldcnt++;
         $bld1 = "$1.$2.$3.$4";
     }
-# Getting Webserver type
-    if (/PLUGIN: Webserver: (.*)/){
+
+    # Getting Webserver type
+    elsif (/PLUGIN: Webserver: (.*)/){
         $webserver = $1
     }
 
-# Loading ErrorArray with unique Error Messages
-    if (/ERROR: (.*)/){
+    # Loading ErrorArray with unique Error Messages
+    elsif (/ERROR: (.*)/){
         my $itercnt = 1;
         my $addVal = 1;
         my $bldError = "ERROR: $1";
         foreach $i (@errorArray){
-#if ($i == $bldError && $addVal != 0){
-#print "addVal: $addVal \n";
-#print "Count: $itercnt\n";
-#print "Input: $bldError \n";
-#print "Array: $i \n\n";
-    if ($i eq $bldError){
-#print "Input: $bldError \n";
-#print "Found Match \n";
-        $addVal = 0;
-    }
-    $itercnt++;
-}
-#print "adding to errorArray";
-push (@errorArray, $bldError) if ($addVal == 1);
-}
-
-if (/DETAIL:    Cache-Control: (.*)/){
-    my $var = $1;
-    chomp($var);
-    $var =~ s/\r//g;
-    $threads{$pid . $tid}->{'cachecontrol'} = $var;
-    if ($var =~ m/no-cache=\"?Set-Cookie/i) { 
-        $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
-    }
-    if ($var =~ m/no-cache/i) { 
-        $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
-    }
-}
-if (/DETAIL:    Expires: (.*)/){
-    my $var =  $1;
-    chomp($var);
-    $var =~ s/\r//g;
-    $threads{$pid . $tid}->{'expires'} = $var;
-}
-
-
-
-# Loading SessionIDArray with Session SetCookie info
-if (/DETAIL:    Set-Cookie: (.*)/){
-    my $var =  $1;
-    chomp($var);
-    $var =~ s/\r//g;
-    my $itercnt = 1;
-    my $addVal = 1;
-    my $sessionID = "Set-Cookie: $var";
-    if (!defined($threads{$pid . $tid}->{'setcookies'})) { 
-        $threads{$pid . $tid}->{'setcookies'} = ($var);
-    }
-    else { 
-        $threads{$pid . $tid}->{'setcookies'} = ($threads{$pid . $tid}->{'setcookies'}, $var);
-    }
-    foreach $i (@sessionIDArray){
-        if ($i eq $sessionID){
-#print "Input: $bldError \n";
-#print "Found Match \n";
-            $addVal = 0;
+            if ($i eq $bldError){
+                $addVal = 0;
+            }
+            $itercnt++;
         }
-        $itercnt++;
+        push (@errorArray, $bldError) if ($addVal == 1);
     }
-#print "adding to sessionIDArray";
-    push (@sessionIDArray, $sessionID) if ($addVal == 1);
-}
 
-
-
-# Loading Stats Array with Stats info
-if (/(.*) - STATS: ws_server: serverSetFailoverStatus: Server (.*)/){
-    my $itercnt = 0;
-    my $addVal = 1;
-    my $statsInfo = "$1 - STATS: ws_server: serverSetFailoverStatus: Server $2";
-    my $aSize = length(@statsArray);
-    for my $i (@statsArray) {
-#foreach $i (sort { $$a{'delta'} <=> $$b{'delta'}} @statsArray){
-    my $colon = index($i, " : ");                                 #Looking for this value which designates the server name
-        my $bracket = index($i, "]");                                 #Looking for the end of the Timestamp entry
-        my $process = substr($statsInfo, ($bracket + 1), ($bracket + 9));
-    my $server = substr($statsInfo, ($bracket + 10), ($colon - $bracket));
-    my $sub_str = substr($statsInfo, ($bracket + 1), ($colon - $bracket));
-#print "$bracket   $colon   $sub_str\n";
-    my $arrayItem = (index($i, $process) + index($i, $server));
-#$arrayItem = index($i, $sub_str);
-    if ($arrayItem < 0){
-#print "-- $aSize -- $sub_str -- $i \n";
-        splice @statsArray, $itercnt, 1;                           #Removes existing entry
-            push (@statsArray, $statsInfo);                            #Replaces with new entry
-#print "Found Match \n";
-            $addVal = 0;
-        last;
+    elsif (/DETAIL:    Cache-Control: (.*)/){
+        my $var = $1;
+        chomp($var);
+        $var =~ s/\r//g;
+        $threads{$pid . $tid}->{'cachecontrol'} = $var;
+        if ($var =~ m/no-cache="?Set-Cookie/i) { 
+            print STDERR "found sc $var\n";
+            $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
+        }
+        if ($var =~ m/no-cache/i) { 
+            print STDERR "found no-cache $var\n";
+            $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
+        }
     }
-    $itercnt++;
-}
-push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
-}
-
-if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) { 
-    $timestr = $1;
-    $pid = $2;
-    $tid = $3;
-
-}
-elsif ( /\[(.*?)(?:\.\d{5})?\] \d+\/QTMHHTTP\/\w+ (\d+) (\d+)/) { 
-    $timestr = $1;
-    $pid = $2;
-    $tid = $3;
-}
-else { 
-    next; 
-}
-
+    elsif (/DETAIL:    Expires: (.*)/){
+        my $var =  $1;
+        chomp($var);
+        $var =~ s/\r//g;
+        $threads{$pid . $tid}->{'expires'} = $var;
+    }
+    # Loading SessionIDArray with Session SetCookie info
+    elsif (/DETAIL:    Set-Cookie: (.*)/){
+        my $var =  $1;
+        chomp($var);
+        $var =~ s/\r//g;
+        my $itercnt = 1;
+        my $addVal = 1;
+        my $sessionID = "Set-Cookie: $var";
+        if (!defined($threads{$pid . $tid}->{'setcookies'})) { 
+            $threads{$pid . $tid}->{'setcookies'} = ($var);
+        }
+        else { 
+            $threads{$pid . $tid}->{'setcookies'} = ($threads{$pid . $tid}->{'setcookies'}, $var);
+        }
+        foreach $i (@sessionIDArray){
+            if ($i eq $sessionID){
+                $addVal = 0;
+            }
+            $itercnt++;
+        }
+        push (@sessionIDArray, $sessionID) if ($addVal == 1);
+    }
+    # Loading Stats Array with Stats info
+    elsif (/(.*) - STATS: ws_server: serverSetFailoverStatus: Server (.*)/){
+        my $itercnt = 0;
+        my $addVal = 1;
+        my $statsInfo = "$1 - STATS: ws_server: serverSetFailoverStatus: Server $2";
+        my $aSize = length(@statsArray);
+        for my $i (@statsArray) {
+            my $colon = index($i, " : ");                                 #Looking for this value which designates the server name
+            my $bracket = index($i, "]");                                 #Looking for the end of the Timestamp entry
+            my $process = substr($statsInfo, ($bracket + 1), ($bracket + 9));
+            my $server = substr($statsInfo, ($bracket + 10), ($colon - $bracket));
+            my $sub_str = substr($statsInfo, ($bracket + 1), ($colon - $bracket));
+            my $arrayItem = (index($i, $process) + index($i, $server));
+            if ($arrayItem < 0){
+                splice @statsArray, $itercnt, 1;                           #Removes existing entry
+                    push (@statsArray, $statsInfo);                            #Replaces with new entry
+                    $addVal = 0;
+                last;
+            }
+            $itercnt++;
+        }
+        push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
+    }
 if (/ws_handle_request: Handling WebSphere request/){ 
     if (defined($threads{$pid . $tid})) { 
         #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
@@ -411,7 +396,7 @@ foreach $r (@requests) {
         print fmt($r);
         printf "\twhy: set-cookie ";
         print $r->{'setcookies'};
-        printf " without cache-control\n";
+        printf " without cache-control " . $r->{'cachecontrol'}. "\n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
     }
     elsif (defined $r->{'setcookies'} && !(defined($r->{'cachecontrolsetcookie'}) || defined($r->{'cachecontrolnocache'}))) { 
