@@ -105,11 +105,9 @@ while(<>) {
         $var =~ s/\r//g;
         $threads{$pid . $tid}->{'cachecontrol'} = $var;
         if ($var =~ m/no-cache="?Set-Cookie/i) { 
-            print STDERR "found sc $var\n";
             $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
         }
         if ($var =~ m/no-cache/i) { 
-            print STDERR "found no-cache $var\n";
             $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
         }
     }
@@ -164,93 +162,89 @@ while(<>) {
         }
         push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
     }
-if (/ws_handle_request: Handling WebSphere request/){ 
-    if (defined($threads{$pid . $tid})) { 
-        #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
-    }
-    else { 
-        $time = str2time($timestr);
-        $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
-    }
-    undef $uri;
-}
-
-if (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) { 
-    if (defined($threads{$pid . $tid})) { # first trace with URI in it
-        $threads{$pid . $tid}->{'uri'} = $1;  
-    }
-} #End While Here
-######################  
-
-
-if (/websphereEndRequest: Ending the request/) { 
-    if (!defined($threads{$pid . $tid}->{'time'})) { 
-        # print STDERR "  didn't see start of req that's ending at line $ln\n";
-    }
-    else { 
-        my $hr;
-        $time = str2time($timestr);
-        $hr =  { delta => $time - $threads{$pid . $tid}->{'time'},  
-            uri => $threads{$pid . $tid}->{'uri'} ,
-            pidtid => "$pid $tid", 
-            begin_line =>  $threads{$pid . $tid}->{'begin'},
-            end_line => $ln,
-            markdowns=> $threads{$pid . $tid}->{'markdowns'},
-            esidone  => $threads{$pid . $tid}->{'esidone'},
-            posterror=> $threads{$pid . $tid}->{'posterror'},
-            miscerror=> $threads{$pid . $tid}->{'miscerror'},
-            status   => $threads{$pid . $tid}->{'status'},
-            cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
-            cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
-            cachecontrolnocache => $threads{$pid . $tid}->{'cachecontrolnocache'},
-            setcookies=> $threads{$pid . $tid}->{'setcookies'},
-        };
-        if (defined($threads{$pid . $tid}->{'read_response_end'})) { 
-            $hr->{'appserverdelay'} = $threads{$pid . $tid}->{'read_response_end'} -  
-                $threads{$pid . $tid}->{'read_response_start'}
+    elsif (/ws_handle_request: Handling WebSphere request/){ 
+        if (defined($threads{$pid . $tid})) { 
+            #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
         }
         else { 
-            $hr->{'appserverdelay'} = -1;
+            $time = str2time($timestr);
+            $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
         }
+        undef $uri;
+    }
 
-        if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
-            $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
-                $threads{$pid . $tid}->{'waitforcontinue'};
+    elsif (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) { 
+        if (defined($threads{$pid . $tid})) { # first trace with URI in it
+            $threads{$pid . $tid}->{'uri'} = $1;  
         }
-
-        if (defined($threads{$pid . $tid}->{'connfailure'})) { 
-            $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
-                $threads{$pid . $tid}->{'dq'};
+    }
+    elsif (/websphereEndRequest: Ending the request/) { 
+        if (!defined($threads{$pid . $tid}->{'time'})) { 
+            # print STDERR "  didn't see start of req that's ending at line $ln\n";
         }
+        else { 
+            my $hr;
+            $time = str2time($timestr);
+            $hr =  { delta => $time - $threads{$pid . $tid}->{'time'},  
+                uri => $threads{$pid . $tid}->{'uri'} ,
+                pidtid => "$pid $tid", 
+                begin_line =>  $threads{$pid . $tid}->{'begin'},
+                end_line => $ln,
+                markdowns=> $threads{$pid . $tid}->{'markdowns'},
+                esidone  => $threads{$pid . $tid}->{'esidone'},
+                posterror=> $threads{$pid . $tid}->{'posterror'},
+                miscerror=> $threads{$pid . $tid}->{'miscerror'},
+                status   => $threads{$pid . $tid}->{'status'},
+                cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
+                cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
+                cachecontrolnocache => $threads{$pid . $tid}->{'cachecontrolnocache'},
+                setcookies=> $threads{$pid . $tid}->{'setcookies'},
+            };
+            if (defined($threads{$pid . $tid}->{'read_response_end'})) { 
+                $hr->{'appserverdelay'} = $threads{$pid . $tid}->{'read_response_end'} -  
+                    $threads{$pid . $tid}->{'read_response_start'}
+            }
+            else { 
+                $hr->{'appserverdelay'} = -1;
+            }
 
-        push @requests, $hr;
-        delete $threads{$pid . $tid};
-    }
-}
+            if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
+                $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
+                    $threads{$pid . $tid}->{'waitforcontinue'};
+            }
 
-if (/just_read = (-?\d+) of the expected (\d+)/) {  # TODO: apache plugin-ism
-    if ($1 != $2 && defined($threads{$pid . $tid})) { 
-        $threads{$pid . $tid}->{'posterror'} = { code=>"just_read $1 of $2", line=>$ln};
-    }
-}
+            if (defined($threads{$pid . $tid}->{'connfailure'})) { 
+                $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
+                    $threads{$pid . $tid}->{'dq'};
+            }
 
-if (/(cb_write_body: write failed.*)/) {
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+            push @requests, $hr;
+            delete $threads{$pid . $tid};
+        }
     }
-}
+    elsif (/just_read = (-?\d+) of the expected (\d+)/) {  # TODO: apache plugin-ism
+        if ($1 != $2 && defined($threads{$pid . $tid})) { 
+            $threads{$pid . $tid}->{'posterror'} = { code=>"just_read $1 of $2", line=>$ln};
+        }
+    }
+
+    elsif (/(cb_write_body: write failed.*)/) {
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
 
 
 #
 # Time waitforcontinue
 #
 
-if (/(htrequestWrite: Waiting for the continue response)/) {
+elsif (/(htrequestWrite: Waiting for the continue response)/) {
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
     }
 }
-if (/(DETAI.*100 Continue)/) {
+elsif (/(DETAI.*100 Continue)/) {
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
     }
@@ -260,12 +254,12 @@ if (/(DETAI.*100 Continue)/) {
 # Track conn failure, conn delay
 #
 
-if (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
+elsif (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'dq'} = str2time($timestr);
     }
 }
-if (/(.*Connection to.*ailed.*)/) { # non-block connect fail
+elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
@@ -275,12 +269,12 @@ if (/(.*Connection to.*ailed.*)/) { # non-block connect fail
 }
 
 
-if (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
-if (/serverSetFailoverStatus: Marking (\w+) down/) { 
+elsif (/serverSetFailoverStatus: Marking (\w+) down/) { 
     if (defined $threads{$pid . $tid}) { 
         if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
             $threads{$pid . $tid}->{'markdowns'} = ();
@@ -289,7 +283,7 @@ if (/serverSetFailoverStatus: Marking (\w+) down/) {
     }
 }
 
-if (/lib_htresponse: htresponseRead: Reading the response/) { 
+elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
     if (defined $threads{$pid . $tid}) { 
         if (!defined $threads{$pid . $tid}->{'esipending'}) { 
             $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
@@ -304,7 +298,7 @@ if (/lib_htresponse: htresponseRead: Reading the response/) {
     }
 }
 
-if (/getResponseFromCache: cache hit/) { 
+elsif (/getResponseFromCache: cache hit/) { 
     if (!defined($threads{$pid . $tid}->{'pastmainrequest'})) { 
 # The request from the client is found in the cache, vs a later ESI subrequest
         $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
@@ -320,14 +314,14 @@ if (/getResponseFromCache: cache hit/) {
     }
 }
 
-if (/getResponseFromCache: cache miss/) { 
+elsif (/getResponseFromCache: cache miss/) { 
     begin_esi_request($pid, $tid);
 } 
-if (/esiRulesGetCacheId: cache miss/) { 
+elsif (/esiRulesGetCacheId: cache miss/) { 
     begin_esi_request($pid, $tid);
 } 
 
-if (/HTTP\/1.\d (\d+) (?!Continue)\w+/) { 
+elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) { 
     if(defined $threads{$pid . $tid}) { 
         printf LOGFILE "got a HTTP response, $_, esipending=%d?\n", defined $threads{$pid . $tid}->{'esipending'};
         if (!defined $threads{$pid . $tid}->{'esipending'}) {
