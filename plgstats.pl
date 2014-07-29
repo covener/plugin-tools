@@ -70,6 +70,15 @@ while(<>) {
      my $failed = $3;
      my $affinity = $4;
      my $total = $5;
+
+  
+     # affinity gets bumped when total doesn't during a failure
+     if ($total == 0 && $failed >= $affinity) { 
+         $affinity = 0;
+     }
+     else { 
+       $affinity -= $failed;
+     }
      if (!defined($options{'s'}) || $server =~ /$options{'s'}/) { 
        if (!defined($options{'p'}) || $pid =~ /$options{'p'}/) { 
          $entries{$server . $pid} = { name => $server, total => $total, affinity => $affinity, pid => $pid }  
