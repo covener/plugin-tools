@@ -17,6 +17,7 @@
 # Parse a plugin log for response times and noteworthy errors.  
 # Summarizes 1GB in about 70 seconds
 # TODO: it would be nice if it knew how to track requests that used the same backend socket.
+# TODO: track slow POST
 
 use strict;
 use HTTP::Date; # part of LWP
@@ -468,7 +469,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print "\n";
         print fmt($r);
         if ($r->{'appserverdelay'} > (.75 * $r->{'delta'})) { 
-            printf "\twhy: slow (WAS response generation)\n";
+            printf "\twhy: slow (WAS response generation or slow POST etc)\n";
         }
         else { 
             printf "\twhy: slow (wall time)\n";
