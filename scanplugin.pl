@@ -90,10 +90,10 @@ if (/DETAIL:    Cache-Control: (.*)/){
     chomp($var);
     $var =~ s/\r//g;
     $threads{$pid . $tid}->{'cachecontrol'} = $var;
-    if ($var =~ /no-cache=\"?Set-Cookie/i) { 
+    if ($var =~ m/no-cache=\"?Set-Cookie/i) { 
         $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
     }
-    if ($var =~ /no-cache/i) { 
+    if ($var =~ m/no-cache/i) { 
         $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
     }
 }
@@ -216,6 +216,7 @@ if (/websphereEndRequest: Ending the request/) {
             status   => $threads{$pid . $tid}->{'status'},
             cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
             cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
+            cachecontrolnocache => $threads{$pid . $tid}->{'cachecontrolnocache'},
             setcookies=> $threads{$pid . $tid}->{'setcookies'},
         };
         if (defined($threads{$pid . $tid}->{'read_response_end'})) { 
