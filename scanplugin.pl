@@ -367,10 +367,11 @@ if (0) {
 }
 print "===\nListing STATS Entries.\n";
 foreach $r (@statsArray) {
-    my $newReq = substr($r, index($r, "totalRequests ") + 14, (index($r, ".")-(index($r, "totalRequests ") + 14))) -  substr($r, index($r, "affinityRequests ") + 17, (index($r, "totalRequests")-(index($r, "affinityRequests "))));
-    my $subStatLine = substr($r, 0, (length($r) - 1));
-    my $statLine =  "$subStatLine newRequests  $newReq";
-    print "$statLine\n";
+#    my $newReq = substr($r, index($r, "totalRequests ") + 14, (index($r, ".")-(index($r, "totalRequests ") + 14))) -  substr($r, index($r, "affinityRequests ") + 17, (index($r, "totalRequests")-(index($r, "affinityRequests "))));
+#    my $subStatLine = substr($r, 0, (length($r) - 1));
+#    my $statLine =  "$subStatLine newRequests  $newReq";
+#    my $statLine =  "$subStatLine newRequests  $newReq";
+    print "$r\n";
 }
 
 
