@@ -17,13 +17,6 @@
 # Parse a plugin log for response times and noteworthy errors.  
 # Summarizes 1GB in about 70 seconds
 # TODO: it would be nice if it knew how to track requests that used the same backend socket.
-# TODO: track slow POST
-
-# todo track handshake time:
-# [29/Jul/2014:11:28:47.86034] 007c0062 00000b0c - TRACE: lib_stream: openStream: setting GSK_USER_DATA (timeout=900)
-# [29/Jul/2014:11:28:57.29953] 007c0062 00000b0c - DETAIL: ws_common: websphereGetStream: Created a new stream; queue was empty, socket = 26 Local Port=48368
-
-
 
 use strict;
 use HTTP::Date; # part of LWP
@@ -194,6 +187,7 @@ while(<>) {
                 esidone  => $threads{$pid . $tid}->{'esidone'},
                 posterror=> $threads{$pid . $tid}->{'posterror'},
                 miscerror=> $threads{$pid . $tid}->{'miscerror'},
+                writeerror=> $threads{$pid . $tid}->{'writeerror'},
                 status   => $threads{$pid . $tid}->{'status'},
                 cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
                 cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
@@ -212,7 +206,14 @@ while(<>) {
                 $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
                     $threads{$pid . $tid}->{'waitforcontinue'};
             }
-
+            if (defined($threads{$pid . $tid}->{'handshake_start'})) { 
+                $hr->{'appserverdelayhandshake'} = $threads{$pid . $tid}->{'handshake_stop'} -  
+                    $threads{$pid . $tid}->{'handshake_start'};
+            }
+            if (defined($threads{$pid . $tid}->{'body_start'})) { 
+                $hr->{'bodyfwddelay'} = $threads{$pid . $tid}->{'body_stop'} -  
+                    $threads{$pid . $tid}->{'body_start'};
+            }
             if (defined($threads{$pid . $tid}->{'connfailure'})) { 
                 $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
                     $threads{$pid . $tid}->{'dq'};
@@ -251,6 +252,37 @@ elsif (/(DETAI.*100 Continue)/) {
 }
 
 #
+# Time handshake
+#
+
+elsif (/lib_stream: openStream: setting GSK_USER_DATA/) {
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'handshake_start'} = str2time($timestr);
+    }
+}
+elsif (/Created a new stream; queue was empty, socket/) {
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'handshake_stop'} = str2time($timestr);
+    }
+}
+
+#
+# Time body 
+#
+
+elsif (/htrequestWrite: Writing the request content, length (\d+)/) {
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'body_start'} = str2time($timestr);
+        $threads{$pid . $tid}->{'body_len'} = $1;
+    }
+}
+elsif (/cb_read_body: In the read body callback/) {
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
+    }
+}
+
+#
 # Track conn failure, conn delay
 #
 
@@ -272,6 +304,11 @@ elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
 elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+    }
+}
+elsif (/(.*Write failed.*)/) { # write failure [to server]
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
 elsif (/serverSetFailoverStatus: Marking (\w+) down/) { 
@@ -444,6 +481,13 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
     }
+    if (defined($r->{'writeerror'})) {
+        print "\n";
+        print fmt($r);
+        printf "\twhy: write error (forwarding req body?) on line %d: '%s'\n", $r->{'writeerror'}->{'line'}, $r->{'writeerror'}->{'text'} ;
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
+    }
 
     if (!$printed && ($r->{'delta'} >= 5)) {  # highlight slow requests
         print "\n";
@@ -493,6 +537,18 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print "\n";
         print fmt($r);
         printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
+    if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
+    if ($r->{'bodyfwddelay'} > 10 || $r->{'bodyfwddelay'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
     }
 }
