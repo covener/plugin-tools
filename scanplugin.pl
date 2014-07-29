@@ -91,11 +91,10 @@ if (/DETAIL:    Cache-Control: (.*)/){
     $threads{$pid . $tid}->{'cachecontrol'} = $var;
     if ($var =~ /no-cache=\"?Set-Cookie/i) { 
         $threads{$pid . $tid}->{'cachecontrolsetcookie'} = 1;
-}
-elsif ($var =~ /no-cache/i) { 
-    $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
-}
-
+    }
+    elsif ($var =~ /no-cache/i) { 
+        $threads{$pid . $tid}->{'cachecontrolnocache'} = 1;
+    }
 }
 if (/DETAIL:    Expires: (.*)/){
     my $var =  $1;
@@ -179,9 +178,8 @@ else {
 }
 
 if (/ws_handle_request: Handling WebSphere request/){ 
-    print OVERWRITE "Handling a new req $_\n";
     if (defined($threads{$pid . $tid})) { 
-        printf "Error, dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
+        printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
     }
     else { 
         $time = str2time($timestr);
@@ -191,7 +189,6 @@ if (/ws_handle_request: Handling WebSphere request/){
 }
 
 if (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) { 
-    print OVERWRITE "Got URI for req: $_\n";
     if (defined($threads{$pid . $tid})) { # first trace with URI in it
         $threads{$pid . $tid}->{'uri'} = $1;  
     }
@@ -201,7 +198,7 @@ if (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) {
 
 if (/websphereEndRequest: Ending the request/) { 
     if (!defined($threads{$pid . $tid}->{'time'})) { 
-        print "Error, didn't see start of req that's ending at line $ln\n";
+        print STDERR "  didn't see start of req that's ending at line $ln\n";
     }
     else { 
         my $hr;
@@ -359,7 +356,7 @@ if (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
 #*********************************************************************************************************************************
 #Printing Bld Info
 if ($bld1 eq "Not Reported") {
-    print "No build version reported.\n\n";
+    print "===\nNo build version reported.\n\n";
 } 
 else {
     print "\nThere were $bldcnt build entries. \n";
@@ -372,18 +369,21 @@ if ($webserver eq "Not Reported") {
 }
 
 #
-print "Listing Unique Error Messages.\n";
+print "===\nListing Unique Error Messages.\n";
 foreach $r (@errorArray) {
     print "$r\n";
 }
 print "\n";
 
-print "Listing Session Set-Cookie Entries.\n";
-foreach $r (@sessionIDArray) {
-    print "$r\n";
+# disabled
+if (0) { 
+    print "===\nListing Session Set-Cookie Entries.\n";
+    foreach $r (@sessionIDArray) {
+        print "$r\n";
+    }
+    print "\n";
 }
-print "\n";
-print "Listing Status Entries.\n";
+print "===\nListing STATS Entries.\n";
 foreach $r (@statsArray) {
     my $newReq = substr($r, index($r, "totalRequests ") + 14, (index($r, ".")-(index($r, "totalRequests ") + 14))) -  substr($r, index($r, "affinityRequests ") + 17, (index($r, "totalRequests")-(index($r, "affinityRequests "))));
     my $subStatLine = substr($r, 0, (length($r) - 1));
@@ -391,12 +391,16 @@ foreach $r (@statsArray) {
     print "$statLine\n";
 }
 
-print "\n";
-foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
-    print fmt($r);
+
+# every requst in response time order? Huh?
+if (0) { 
+    print "\n";
+    foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
+        print fmt($r);
+    }
 }
 
-print "\nInteresting cookie/cacheRequests:\n";
+print "\n===Interesting cookie/cacheRequests (experimental):\n";
 
 foreach $r (@requests) { 
     if (defined $r->{'setcookies'} && !defined($r->{'cachecontrol'})) { 
@@ -421,7 +425,7 @@ foreach $r (@requests) {
     }
 }
 
-print "\nInteresting Requests:\n";
+print "\n===Interesting Requests:\n";
 foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
     my $printed = 0;
     my $total_esi_seconds = 0;
@@ -510,12 +514,15 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     }
 }
 
-print "\nUnfinished Requests:\n" if (scalar(keys %threads) > 0);
+# disabled
+if (0) { 
+    print "\n===Unfinished Requests:\n" if (scalar(keys %threads) > 0);
 
-my ($k, $v);
-while (($k, $v) = each(%threads)) { 
-    print "Request didn't finish in this trace, began at line " . $v->{'begin'}  . 
-        " uri= " . $v->{'uri'} . "\n";
+    my ($k, $v);
+    while (($k, $v) = each(%threads)) { 
+        print "Request didn't finish in this trace, began at line " . $v->{'begin'}  . 
+            " uri= " . $v->{'uri'} . "\n";
+    }
 }
 close OVERWRITE;
 sub sed_split() { 
