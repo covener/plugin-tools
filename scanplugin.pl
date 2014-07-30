@@ -33,11 +33,7 @@ my $bldcnt;
 my $sessionID;
 my $webserver;
 my $file = $ARGV[0];
-#my $logFile="/tmp/scanplugin.log";
-my $logFile="\temp5\scanplugin.log";
-open (OVERWRITE, ">scanplugin.log") or die "Error opening $logFile $!\n";
-#open (OVERWRITE, ">$logFile") or die "Error opening $logFile $!\n";
-#open (LOGFILE, ">$file") or die "I couldn't get at log.txt";
+open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
 
 if (!defined($file)) { 
     printf "$0 /path/to/http-plugin.log\n";
@@ -66,20 +62,8 @@ while(<>) {
         $tid = $3;
     }
 
-
-    # Getting Bld version.
-    if (/PLUGIN: Bld version: (\w+).(\w+).(\w+).(\w+)/){
-        $bldcnt++;
-        $bld1 = "$1.$2.$3.$4";
-    }
-
-    # Getting Webserver type
-    elsif (/PLUGIN: Webserver: (.*)/){
-        $webserver = $1
-    }
-
     # Loading ErrorArray with unique Error Messages
-    elsif (/ERROR: (.*)/){
+    if (/ERROR: (.*)/){
         my $itercnt = 1;
         my $addVal = 1;
         my $bldError = "ERROR: $1";
@@ -90,6 +74,18 @@ while(<>) {
             $itercnt++;
         }
         push (@errorArray, $bldError) if ($addVal == 1);
+    }
+
+
+    # Getting Bld version.
+    if (/PLUGIN: Bld version: (\w+).(\w+).(\w+).(\w+)/){
+        $bldcnt++;
+        $bld1 = "$1.$2.$3.$4";
+    }
+
+    # Getting Webserver type
+    elsif (/PLUGIN: Webserver: (.*)/){
+        $webserver = $1
     }
 
     elsif (/DETAIL:    Cache-Control: (.*)/){
@@ -321,7 +317,7 @@ elsif (/(.*Write failed.*)/) { # write failure [to server]
         $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
-elsif (/serverSetFailoverStatus: Marking (\w+) down/) { 
+elsif (/serverSetFailoverStatus: Marking (.+) down/) { 
     if (defined $threads{$pid . $tid}) { 
         if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
             $threads{$pid . $tid}->{'markdowns'} = ();
