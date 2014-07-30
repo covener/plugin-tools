@@ -187,6 +187,7 @@ while(<>) {
                 esidone  => $threads{$pid . $tid}->{'esidone'},
                 posterror=> $threads{$pid . $tid}->{'posterror'},
                 miscerror=> $threads{$pid . $tid}->{'miscerror'},
+                WSFO => $threads{$pid . $tid}->{'WSFO'},
                 clusterdown=> $threads{$pid . $tid}->{'clusterdown'},
                 writeerror=> $threads{$pid . $tid}->{'writeerror'},
                 status   => $threads{$pid . $tid}->{'status'},
@@ -305,7 +306,11 @@ elsif (/(.*all could be down*)/) {
         $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
-
+elsif (/(.*WSFO*)/) { 
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'WSFO'} = { time=>$timestr, line=>$ln , text=>$1};
+    }
+}
 elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
@@ -459,6 +464,31 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
             $total_esi_seconds += $_->{'esi_end'} - $_->{'esi_start'}; 
         }
     } 
+    if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
+
+    if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
+    if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
+    if ($r->{'bodyfwddelay'} > 10 || $r->{'bodyfwddelay'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+    }
 
     if (defined $r->{'posterror'}) { 
         print "\n";
@@ -486,6 +516,15 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
     }
+    if (defined($r->{'WSFO'})) {
+        print "\n";
+        print fmt($r);
+        printf "\twhy: Failures (\$WSFO\) on line %d: '%s'\n", $r->{'WSFO'}->{'line'}, $r->{'WSFO'}->{'text'} ;
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
+    }
+
+
     if (defined($r->{'writeerror'})) {
         print "\n";
         print fmt($r);
@@ -537,31 +576,6 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
 
     }
 
-    if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
-    }
-
-    if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
-    }
-    if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
-    }
-    if ($r->{'bodyfwddelay'} > 10 || $r->{'bodyfwddelay'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
-    }
 }
 
 # disabled
