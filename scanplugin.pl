@@ -515,7 +515,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     if (defined($r->{'WSFO'})) {
         print "\n";
         print fmt($r);
-        printf "\twhy: Failures (\$WSFO\) on line %d: '%s'\n", $r->{'WSFO'}->{'line'}, $r->{'WSFO'}->{'text'} ;
+        printf "\twhy: Failovers (\$WSFO\) on line %d: '%s'\n", $r->{'WSFO'}->{'line'}, $r->{'WSFO'}->{'text'} ;
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
     }
