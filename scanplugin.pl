@@ -204,6 +204,7 @@ while(<>) {
                 uri => $threads{$pid . $tid}->{'uri'} ,
                 pidtid => "$pid $tid", 
                 begin_line =>  $threads{$pid . $tid}->{'begin'},
+                end_time => $timestr,
                 end_line => $ln,
                 markdowns=> $threads{$pid . $tid}->{'markdowns'},
                 esidone  => $threads{$pid . $tid}->{'esidone'},
@@ -623,11 +624,11 @@ sub fmt() {
         }
     } 
 
-    $result = sprintf "%3ds (%3ds) lines: %6d,%6d status=%d uri=%s\n", 
+    $result = sprintf "%3ds (%3ds) lines: %6d,%6d status=%d uri=%s end=%s\n", 
         $r->{'delta'}, 
         $r->{'appserverdelay'} + $total_esi_seconds, 
         $r->{'begin_line'},  $r->{'end_line'}, 
-        $r->{'status'}, $r->{'uri'};
+        $r->{'status'}, $r->{'uri'}, $r->{'end_time'} ;
 
     if (defined($r->{'esidone'}) && scalar @{$r->{'esidone'}} > 0) { 
         $result .= sprintf "\tesi subrequests = %d, total appserver ESI seconds=%d\n",
