@@ -42,15 +42,9 @@ if (!defined($file)) {
 $webserver = "Not Reported";
 $bld1 = "Not Reported";
 
-while(<>) { 
-    $ln++;
-    chomp();
-    if ($ln % 20000 == 0) { 
-        print STDERR "reading line $ln...\n";
-    }
-
-
-    # Always grab the pid/tid and timestr
+sub readpidtid() { 
+  my $line = $@;
+   # Always grab the pid/tid and timestr
     if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) { 
         $timestr = $1;
         $pid = $2;
@@ -61,6 +55,15 @@ while(<>) {
         $pid = $2;
         $tid = $3;
     }
+}
+
+while(<>) { 
+    $ln++;
+    chomp();
+    if ($ln % 20000 == 0) { 
+        print STDERR "reading line $ln...\n";
+    }
+
 
     # Loading ErrorArray with unique Error Messages
     if (/ERROR: (.*)/){
@@ -89,6 +92,7 @@ while(<>) {
     }
 
     elsif (/DETAIL:    Cache-Control: (.*)/){
+        readpidtid();
         my $var = $1;
         chomp($var);
         $var =~ s/\r//g;
@@ -101,6 +105,7 @@ while(<>) {
         }
     }
     elsif (/DETAIL:    Expires: (.*)/){
+        readpidtid();
         my $var =  $1;
         chomp($var);
         $var =~ s/\r//g;
@@ -108,6 +113,7 @@ while(<>) {
     }
     # Loading SessionIDArray with Session SetCookie info
     elsif (/DETAIL:    Set-Cookie: (.*)/){
+        readpidtid();
         my $var =  $1;
         chomp($var);
         $var =~ s/\r//g;
@@ -130,6 +136,7 @@ while(<>) {
     }
     # Loading Stats Array with Stats info
     elsif (/(.*) - STATS: ws_server: serverSetFailoverStatus: Server (.*)/){
+        readpidtid();
         my $itercnt = 0;
         my $addVal = 1;
         my $statsInfo = "$1 - STATS: ws_server: serverSetFailoverStatus: Server $2";
@@ -152,6 +159,7 @@ while(<>) {
         push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
     }
     elsif (/ws_handle_request: Handling WebSphere request/){ 
+        readpidtid();
         if (defined($threads{$pid . $tid})) { 
             #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
         }
@@ -163,11 +171,13 @@ while(<>) {
     }
 
     elsif (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) { 
+        readpidtid();
         if (defined($threads{$pid . $tid})) { # first trace with URI in it
             $threads{$pid . $tid}->{'uri'} = $1;  
         }
     }
     elsif (/websphereEndRequest: Ending the request/) { 
+        readpidtid();
         if (!defined($threads{$pid . $tid}->{'time'})) { 
             # print STDERR "  didn't see start of req that's ending at line $ln\n";
         }
@@ -222,12 +232,14 @@ while(<>) {
         }
     }
     elsif (/just_read = (-?\d+) of the expected (\d+)/) {  # TODO: apache plugin-ism
+        readpidtid();
         if ($1 != $2 && defined($threads{$pid . $tid})) { 
             $threads{$pid . $tid}->{'posterror'} = { code=>"just_read $1 of $2", line=>$ln};
         }
     }
 
     elsif (/(cb_write_body: write failed.*)/) {
+        readpidtid();
         if (defined $threads{$pid . $tid}) {
             $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
         }
@@ -239,11 +251,13 @@ while(<>) {
 #
 
 elsif (/(htrequestWrite: Waiting for the continue response)/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
     }
 }
 elsif (/(DETAI.*100 Continue)/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
     }
@@ -254,11 +268,13 @@ elsif (/(DETAI.*100 Continue)/) {
 #
 
 elsif (/lib_stream: openStream: setting GSK_USER_DATA/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'handshake_start'} = str2time($timestr);
     }
 }
 elsif (/Created a new stream; queue was empty, socket/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'handshake_stop'} = str2time($timestr);
     }
@@ -269,12 +285,14 @@ elsif (/Created a new stream; queue was empty, socket/) {
 #
 
 elsif (/htrequestWrite: Writing the request content, length (\d+)/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'body_start'} = str2time($timestr);
         $threads{$pid . $tid}->{'body_len'} = $1;
     }
 }
 elsif (/cb_read_body: In the read body callback/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
     }
@@ -285,11 +303,13 @@ elsif (/cb_read_body: In the read body callback/) {
 #
 
 elsif (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'dq'} = str2time($timestr);
     }
 }
 elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
@@ -298,26 +318,31 @@ elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
     }
 }
 elsif (/(.*all could be down*)/) { 
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
 elsif (/(.*WSFO*)/) { 
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'WSFO'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
 elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
 elsif (/(.*Write failed.*)/) { # write failure [to server]
+    readpidtid();
     if (defined $threads{$pid . $tid}) {
         $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
     }
 }
 elsif (/serverSetFailoverStatus: Marking (.+) down/) { 
+    readpidtid();
     if (defined $threads{$pid . $tid}) { 
         if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
             $threads{$pid . $tid}->{'markdowns'} = ();
@@ -327,6 +352,7 @@ elsif (/serverSetFailoverStatus: Marking (.+) down/) {
 }
 
 elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
+    readpidtid();
     if (defined $threads{$pid . $tid}) { 
         if (!defined $threads{$pid . $tid}->{'esipending'}) { 
             $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
@@ -342,6 +368,7 @@ elsif (/lib_htresponse: htresponseRead: Reading the response/) {
 }
 
 elsif (/getResponseFromCache: cache hit/) { 
+    readpidtid();
     if (!defined($threads{$pid . $tid}->{'pastmainrequest'})) { 
 # The request from the client is found in the cache, vs a later ESI subrequest
         $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
@@ -358,13 +385,16 @@ elsif (/getResponseFromCache: cache hit/) {
 }
 
 elsif (/getResponseFromCache: cache miss/) { 
+    readpidtid();
     begin_esi_request($pid, $tid);
 } 
 elsif (/esiRulesGetCacheId: cache miss/) { 
+    readpidtid();
     begin_esi_request($pid, $tid);
 } 
 
 elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) { 
+    readpidtid();
     if(defined $threads{$pid . $tid}) { 
         printf LOGFILE "got a HTTP response, $_, esipending=%d?\n", defined $threads{$pid . $tid}->{'esipending'};
         if (!defined $threads{$pid . $tid}->{'esipending'}) {
