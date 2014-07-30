@@ -493,6 +493,7 @@ print "\n===Interesting Requests:\n";
 my $count = 0;
 foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
     my $printed = 0;
+    my @why = ();
     my $total_esi_seconds = 0;
     if (defined($r->{'esidone'}) && scalar @{$r->{'esidone'}} > 0) { 
         foreach (@{$r->{'esidone'}}) {
@@ -500,112 +501,72 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         }
     } 
     if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .25 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
         $printed = 1;
     }
 
     if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .25 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
         $printed = 1;
     }
     if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .25 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
         $printed = 1;
     }
     if ($r->{'bodyfwddelay'} > 10 || $r->{'bodyfwddelay'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
         $printed = 1;
     }
 
     if ($r->{'respcodedelay'} > 5 || $r->{'respcodedelay'} > .75 * $r->{'delta'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds \n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds \n";
         $printed = 1;
     }
 
-
     if (defined $r->{'posterror'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: post error: '%s' at line %d\n", $r->{'posterror'}->{'code'}, $r->{'posterror'}->{'line'};
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: post error: '%s' at line %d\n", $r->{'posterror'}->{'code'}, $r->{'posterror'}->{'line'};
         $printed = 1;
     }
 
     if (defined $r->{'markdowns'}) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: markdowns\n";
+        push @why, "\twhy: markdowns\n";
         foreach (@{$r->{'markdowns'}}) {  
-            printf "\tMarkdown of %s at line %d and time %s\n", $_->{'server'}, $_->{'line'}, $_->{'time'};
+            push @why, sprintf "\twhy: Markdown of %s at line %d and time %s\n", $_->{'server'}, $_->{'line'}, $_->{'time'};
         }
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
     }
 
     if (defined($r->{'miscerror'})) {
-        print "\n";
-        print fmt($r);
-        printf "\twhy: misc error on line %d: '%s'\n", $r->{'miscerror'}->{'line'}, $r->{'miscerror'}->{'text'} ;
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: misc error on line %d: '%s'\n", $r->{'miscerror'}->{'line'}, $r->{'miscerror'}->{'text'} ;
         $printed = 1;
     }
     if (defined($r->{'WSFO'})) {
-        print "\n";
-        print fmt($r);
-        printf "\twhy: Failovers (\$WSFO\) on line %d: '%s'\n", $r->{'WSFO'}->{'line'}, $r->{'WSFO'}->{'text'} ;
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: Failovers (\$WSFO\) on line %d: '%s'\n", $r->{'WSFO'}->{'line'}, $r->{'WSFO'}->{'text'} ;
         $printed = 1;
     }
 
 
     if (defined($r->{'writeerror'})) {
-        print "\n";
-        print fmt($r);
-        printf "\twhy: write error (forwarding req body?) on line %d: '%s'\n", $r->{'writeerror'}->{'line'}, $r->{'writeerror'}->{'text'} ;
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: write error (forwarding req body?) on line %d: '%s'\n", $r->{'writeerror'}->{'line'}, $r->{'writeerror'}->{'text'} ;
         $printed = 1;
     }
     if (defined($r->{'clusterdown'})) {
-        print "\n";
-        print fmt($r);
-        printf "\twhy: cluster marked down on line %d: '%s'\n", $r->{'clusterdown'}->{'line'}, $r->{'clusterdown'}->{'text'} ;
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: cluster marked down on line %d: '%s'\n", $r->{'clusterdown'}->{'line'}, $r->{'clusterdown'}->{'text'} ;
         $printed = 1;
     }
 
     if (!$printed && ($r->{'delta'} >= 5)) {  # highlight slow requests
-        print "\n";
-        print fmt($r);
         if ($r->{'appserverdelay'} > (.75 * $r->{'delta'})) { 
-            printf "\twhy: slow (WAS response generation or slow POST etc)\n";
+            push @why, sprintf"\twhy: slow (WAS response generation or slow POST etc)\n";
         }
         else { 
-            printf "\twhy: slow (wall time)\n";
+            push @why, sprintf "\twhy: slow (wall time)\n";
         }
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
     }
 
     if (!$printed && ($r->{'appserverdelay'} == -1)) {  # no response
-        print "\n";
-        print fmt($r);
-        printf "\twhy: no response from appserver\n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf"\twhy: no response from appserver\n";
         $printed = 1;
     }
     my $wasted = $r->{'delta'} - $r->{'appserverdelay'} - $total_esi_seconds;
@@ -613,26 +574,23 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     if ($r->{'appserverdelay'} > 0 && 
             $r->{'delta'} > 2          &&
             $wasted > (.5 * $r->{'appserverdelay'})) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: less than half the wall time was due to appserver processing\n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, "\twhy: less than half the wall time was due to appserver processing\n";
         $printed = 1;
     }
 
     if (!$printed && $r->{'status'} == 500) { 
-        print "\n";
-        print fmt($r);
-        printf "\twhy: ISE from AppServer\n";
-        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        push @why, sprintf "\twhy: ISE from AppServer\n";
         $printed = 1;
     }
     
    if ($printed) { 
         $count += 1;
-        print "\n######################################\n";
-        print "# End of interesting request $count   \n";
-        print "#####################################\n";
+        print "\n";
+        print fmt($r);
+        foreach (@why) {
+            printf "$_";
+        }
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
    }
 
 }
