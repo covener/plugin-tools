@@ -187,6 +187,7 @@ while(<>) {
                 esidone  => $threads{$pid . $tid}->{'esidone'},
                 posterror=> $threads{$pid . $tid}->{'posterror'},
                 miscerror=> $threads{$pid . $tid}->{'miscerror'},
+                clusterdown=> $threads{$pid . $tid}->{'clusterdown'},
                 writeerror=> $threads{$pid . $tid}->{'writeerror'},
                 status   => $threads{$pid . $tid}->{'status'},
                 cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
@@ -299,7 +300,11 @@ elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
         $threads{$pid . $tid}->{'connfailure'} = str2time($timestr);
     }
 }
-
+elsif (/(.*all could be down*)/) { 
+    if (defined $threads{$pid . $tid}) {
+        $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
+    }
+}
 
 elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
     if (defined $threads{$pid . $tid}) {
@@ -487,6 +492,12 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         printf "\twhy: write error (forwarding req body?) on line %d: '%s'\n", $r->{'writeerror'}->{'line'}, $r->{'writeerror'}->{'text'} ;
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
         $printed = 1;
+    }
+    if (defined($r->{'clusterdown'})) {
+        print "\n";
+        print fmt($r);
+        printf "\twhy: cluster marked down on line %d: '%s'\n", $r->{'clusterdown'}->{'line'}, $r->{'clusterdown'}->{'text'} ;
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
     }
 
     if (!$printed && ($r->{'delta'} >= 5)) {  # highlight slow requests
