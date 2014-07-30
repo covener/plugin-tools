@@ -86,8 +86,24 @@ while(<>) {
         $bld1 = "$1.$2.$3.$4";
     }
 
+    if (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
+        readpidtid();
+        if(defined $threads{$pid . $tid}) { 
+            $threads{$pid . $tid}->{'respcode_stop'} = str2time($timestr);
+            
+            printf LOGFILE "got a HTTP response, $_, esipending=%d?\n", defined $threads{$pid . $tid}->{'esipending'};
+            if (!defined $threads{$pid . $tid}->{'esipending'}) {
+                $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
+                $threads{$pid . $tid}->{'status'} = $1;
+            }
+            else {
+                finish_esi_request($pid, $tid, 0); 
+            }
+        }
+    }
+
     # Getting Webserver type
-    elsif (/PLUGIN: Webserver: (.*)/){
+    if (/PLUGIN: Webserver: (.*)/){
         $webserver = $1
     }
 
@@ -226,6 +242,11 @@ while(<>) {
                 $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
                     $threads{$pid . $tid}->{'dq'};
             }
+            if (defined($threads{$pid . $tid}->{'respcode_start'})) { 
+                $hr->{'respcodedelay'} = $threads{$pid . $tid}->{'respcode_stop'} -  
+                    $threads{$pid . $tid}->{'respcode_start'};
+            }
+
 
             push @requests, $hr;
             delete $threads{$pid . $tid};
@@ -297,7 +318,6 @@ elsif (/cb_read_body: In the read body callback/) {
         $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
     }
 }
-
 #
 # Track conn failure, conn delay
 #
@@ -354,6 +374,7 @@ elsif (/serverSetFailoverStatus: Marking (.+) down/) {
 elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
     readpidtid();
     if (defined $threads{$pid . $tid}) { 
+        $threads{$pid . $tid}->{'respcode_start'} = str2time($timestr);
         if (!defined $threads{$pid . $tid}->{'esipending'}) { 
             $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
         }
@@ -393,19 +414,6 @@ elsif (/esiRulesGetCacheId: cache miss/) {
     begin_esi_request($pid, $tid);
 } 
 
-elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) { 
-    readpidtid();
-    if(defined $threads{$pid . $tid}) { 
-        printf LOGFILE "got a HTTP response, $_, esipending=%d?\n", defined $threads{$pid . $tid}->{'esipending'};
-        if (!defined $threads{$pid . $tid}->{'esipending'}) {
-            $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
-            $threads{$pid . $tid}->{'status'} = $1;
-        }
-        else {
-            finish_esi_request($pid, $tid, 0); 
-        }
-    }
-}
 } # end while
 
 #*********************************************************************************************************************************
@@ -482,6 +490,7 @@ foreach $r (@requests) {
 }
 
 print "\n===Interesting Requests:\n";
+my $count = 0;
 foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) { 
     my $printed = 0;
     my $total_esi_seconds = 0;
@@ -490,31 +499,44 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
             $total_esi_seconds += $_->{'esi_end'} - $_->{'esi_start'}; 
         }
     } 
-    if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .75 * $r->{'delta'}) { 
+    if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .25 * $r->{'delta'}) { 
         print "\n";
         print fmt($r);
         printf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
 
-    if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .75 * $r->{'delta'}) { 
+    if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .25 * $r->{'delta'}) { 
         print "\n";
         print fmt($r);
         printf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
-    if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .75 * $r->{'delta'}) { 
+    if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .25 * $r->{'delta'}) { 
         print "\n";
         print fmt($r);
         printf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
     if ($r->{'bodyfwddelay'} > 10 || $r->{'bodyfwddelay'} > .75 * $r->{'delta'}) { 
         print "\n";
         print fmt($r);
         printf "\twhy: Delay forwarding request body of $r->{'bodyfwddelay'} seconds \n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
+
+    if ($r->{'respcodedelay'} > 5 || $r->{'respcodedelay'} > .75 * $r->{'delta'}) { 
+        print "\n";
+        print fmt($r);
+        printf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds \n";
+        printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
+    }
+
 
     if (defined $r->{'posterror'}) { 
         print "\n";
@@ -563,6 +585,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print fmt($r);
         printf "\twhy: cluster marked down on line %d: '%s'\n", $r->{'clusterdown'}->{'line'}, $r->{'clusterdown'}->{'text'} ;
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
 
     if (!$printed && ($r->{'delta'} >= 5)) {  # highlight slow requests
@@ -575,6 +598,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
             printf "\twhy: slow (wall time)\n";
         }
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
 
     if (!$printed && ($r->{'appserverdelay'} == -1)) {  # no response
@@ -582,6 +606,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print fmt($r);
         printf "\twhy: no response from appserver\n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
     my $wasted = $r->{'delta'} - $r->{'appserverdelay'} - $total_esi_seconds;
 
@@ -592,6 +617,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print fmt($r);
         printf "\twhy: less than half the wall time was due to appserver processing\n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
+        $printed = 1;
     }
 
     if (!$printed && $r->{'status'} == 500) { 
@@ -599,8 +625,15 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         print fmt($r);
         printf "\twhy: ISE from AppServer\n";
         printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
-
+        $printed = 1;
     }
+    
+   if ($printed) { 
+        $count += 1;
+        print "\n######################################\n";
+        print "# End of interesting request $count   \n";
+        print "#####################################\n";
+   }
 
 }
 
@@ -617,7 +650,7 @@ if (0) {
 close OVERWRITE;
 sub sed_split() { 
     my ($r) = @_;
-    return sprintf "sed -e '%s,%s!d' '%s' | grep '%s'", 
+    return sprintf "sed -e '%s,%s!d' '%s' | grep '%s'\n",
            $r->{'begin_line'}, $r->{'end_line'}, $file , $r->{'pidtid'};
 }
 
