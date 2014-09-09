@@ -57,7 +57,9 @@ sub readpidtid() {
     }
 }
 
+my $lastline;
 while(<>) { 
+    $lastline = $_;
     $ln++;
     chomp();
     if ($ln % 20000 == 0) { 
@@ -182,6 +184,7 @@ while(<>) {
         else { 
             $time = str2time($timestr);
             $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
+            $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
         undef $uri;
     }
@@ -267,6 +270,12 @@ while(<>) {
         }
     }
 
+
+    if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) {
+        $timestr = $1;
+        $pid = $2;
+        $tid = $3;
+    }
 
 #
 # Time waitforcontinue
@@ -416,6 +425,11 @@ elsif (/esiRulesGetCacheId: cache miss/) {
 } 
 
 } # end while
+
+if ($lastline =~ m/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) {
+  $timestr = $1;
+}
+
 
 #*********************************************************************************************************************************
 #Printing Bld Info
@@ -596,16 +610,19 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
 
 }
 
-# disabled
-if (0) { 
-    print "\n===Unfinished Requests:\n" if (scalar(keys %threads) > 0);
+    print "\n===Unfinished Requests (experimental?):\n" if (scalar(keys %threads) > 0);
 
     my ($k, $v);
     while (($k, $v) = each(%threads)) { 
-        print "Request didn't finish in this trace, began at line " . $v->{'begin'}  . 
-            " uri= " . $v->{'uri'} . "\n";
+        my $delay = str2time($timestr) - $v->{'time'};
+        print "Request didn't finish in this trace (which ended $delay seconds after the request began at line " . $v->{'begin'}  . 
+            ") uri= " . $v->{'uri'} . "\n";
+            my $r;
+            $r->{'end_line'} = $ln;
+            $r->{'begin_line'} = $v->{'begin'};
+            $r->{'pidtid'} = $v->{'pidtid'};
+            printf "\tSplit trace:\n\t\t%s\n", sed_split($r);
     }
-}
 close OVERWRITE;
 sub sed_split() { 
     my ($r) = @_;
