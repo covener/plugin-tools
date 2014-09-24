@@ -18,8 +18,9 @@ in WebSphere Application Server.
 
   * retrievesigner.jar
     Tiny java utility to grab the root CA from a port and either dump it to a
-    file or directly add it to plugin-key.kdb.  This is useful for fixing the most
-    common forms of GSKit 414 errors, where the WAS root CA is simply not present
-    in plugin-key.kdb.  Note: If you subsequently propagate the same keystore
-    from the dmgr to the webserver (which is the preferred way to ensure the right 
-    CAs are trusted) any changes from this tool will be lost.
+    file or directly add it to plugin-key.kdb.  This is useful for fixing the 
+    most common forms of GSKit 414 errors, where the WAS root CA is simply 
+    not present in plugin-key.kdb.  Note: If you subsequently propagate the 
+    same keystore from the dmgr to the webserver (which is the preferred 
+    way to ensure the right CAs are trusted) any changes from this tool 
+    will be lost.
