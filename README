@@ -15,6 +15,9 @@ in WebSphere Application Server.
 
   * linux_prereq.sh
     Grab 32-bit and 64-bit prerequisites on RHEL.
+  
+  * wsptp.pl
+    Summarize Java Proxy logs usage of mem2mem partition tables
 
   * retrievesigner.jar
     Tiny java utility to grab the root CA from a port and either dump it to a
