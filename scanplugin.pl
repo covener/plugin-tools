@@ -234,7 +234,7 @@ while(nextline()) {
         }
         else { 
             $time = my_str2time($timestr);
-            $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
+            $threads{$pid . $tid} = { begin_time => $timestr, time => $time, begin => $ln };  # start tracking this request
             $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
     }
@@ -248,16 +248,15 @@ while(nextline()) {
                 printf STDERR "Begin new req (alt) $ln: $_\n";
             }
             $time = my_str2time($timestr);
-            $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
+            $threads{$pid . $tid} = {  begin_time => $timestr, time => $time, begin => $ln };  # start tracking this request
             $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
         else { 
             if ($opt_debug) {
                 printf STDERR "Continue new req (alt) $ln: $_\n";
             }
-            $threads{$pid . $tid}->{'uri'} = $1;  
         }
-        
+        $threads{$pid . $tid}->{'uri'} = $1;  
     }
     elsif (/websphereEndRequest: Ending the request/) { 
         readpidtid();
@@ -278,6 +277,7 @@ while(nextline()) {
                 pidtid => "$pid $tid", 
                 begin_line =>  $threads{$pid . $tid}->{'begin'},
                 end_time => $timestr,
+                begin_time => $threads{$pid . $tid}->{'begin_time'},
                 end_line => $ln,
                 markdowns=> $threads{$pid . $tid}->{'markdowns'},
                 esidone  => $threads{$pid . $tid}->{'esidone'},
@@ -710,11 +710,12 @@ sub fmt() {
         }
     } 
 
-    $result = sprintf "%.2fs (%.2fs) lines: %6d,%6d status=%d uri=%s end=%s\n", 
+    $result = sprintf "%.2fs (was-delay=%.2fs) status=%d uri=%s \n\tBegin: %s line %6d\n\tEnd  : %s line %6d\n", 
         $r->{'delta'}, 
         $r->{'appserverdelay'} + $total_esi_seconds, 
-        $r->{'begin_line'},  $r->{'end_line'}, 
-        $r->{'status'}, $r->{'uri'}, $r->{'end_time'} ;
+        $r->{'status'}, $r->{'uri'}, 
+        $r->{'begin_time'}, $r->{'begin_line'}, 
+        $r->{'end_time'}, $r->{'end_line'};
 
     if (defined($r->{'esidone'}) && scalar @{$r->{'esidone'}} > 0) { 
         $result .= sprintf "\tesi subrequests = %d, total appserver ESI seconds=%d\n",
