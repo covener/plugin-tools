@@ -55,10 +55,25 @@ open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
 $bld1 = "Not Reported";
 $webserver = "Not Reported";
 
+sub my_str2time { 
+   my $timestr = $_[0];
+   my $rv = str2time($timestr);
+                     # 05/Oct/2014:21:55:30.99166
+   if ($timestr =~ /(.*)\.(\d{5})$/) { 
+       $rv = str2time($1);
+       # add fractional seconds 
+       
+       print "my_str2time full second part is $rv 2=$2 " . $2/100000 . "str= $timestr\n";
+       $rv += $2/100000;
+   }
+   print "my_str2time return $rv for timestring $timestr\n";
+   return $rv;
+}
+
 sub readpidtid() { 
   my $line = $@;
    # Always grab the pid/tid and timestr
-    if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) { 
+    if (/\[(.*?(?:\.\d{5}))?\] (\w+) (\w+)/) { 
         $timestr = $1;
         $pid = $2;
         $tid = $3;
@@ -127,11 +142,11 @@ while(nextline()) {
     elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
         readpidtid();
         if(defined $threads{$pid . $tid}) { 
-            $threads{$pid . $tid}->{'respcode_stop'} = str2time($timestr);
+            $threads{$pid . $tid}->{'respcode_stop'} = my_str2time($timestr);
             
             printf LOGFILE "got a HTTP response, $_, esipending=%d?\n", defined $threads{$pid . $tid}->{'esipending'};
             if (!defined $threads{$pid . $tid}->{'esipending'}) {
-                $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
+                $threads{$pid . $tid}->{'read_response_end'} = my_str2time($timestr);
                 $threads{$pid . $tid}->{'status'} = $1;
             }
             else {
@@ -221,7 +236,7 @@ while(nextline()) {
             #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
         }
         else { 
-            $time = str2time($timestr);
+            $time = my_str2time($timestr);
             $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
             $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
@@ -235,11 +250,14 @@ while(nextline()) {
             if ($opt_debug) {
                 printf STDERR "Begin new req (alt) $ln: $_\n";
             }
-            $time = str2time($timestr);
+            $time = my_str2time($timestr);
             $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
             $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
         else { 
+            if ($opt_debug) {
+                printf STDERR "Continue new req (alt) $ln: $_\n";
+            }
             $threads{$pid . $tid}->{'uri'} = $1;  
         }
         
@@ -251,13 +269,14 @@ while(nextline()) {
         }
         if (!defined($threads{$pid . $tid}->{'time'})) { 
             if ($opt_debug) { 
-               print STDERR "  didn't see start of req that's ending at line $ln: $_\n"; 
+               print STDERR " didn't see start of req that's ending at line $ln: $_\n"; 
             }
         }
         else { 
             my $hr;
-            $time = str2time($timestr);
-            $hr =  { delta => $time - $threads{$pid . $tid}->{'time'},  
+            $time = my_str2time($timestr);
+          
+            $hr =  { delta => sprintf("%.3f", $time - $threads{$pid . $tid}->{'time'}),  
                 uri => $threads{$pid . $tid}->{'uri'} ,
                 pidtid => "$pid $tid", 
                 begin_line =>  $threads{$pid . $tid}->{'begin'},
@@ -277,32 +296,32 @@ while(nextline()) {
                 setcookies=> $threads{$pid . $tid}->{'setcookies'},
             };
             if (defined($threads{$pid . $tid}->{'read_response_end'})) { 
-                $hr->{'appserverdelay'} = $threads{$pid . $tid}->{'read_response_end'} -  
-                    $threads{$pid . $tid}->{'read_response_start'}
+                $hr->{'appserverdelay'} = sprintf("%.2f", $threads{$pid . $tid}->{'read_response_end'} -  
+                    $threads{$pid . $tid}->{'read_response_start'});
             }
             else { 
                 $hr->{'appserverdelay'} = -1;
             }
 
             if (defined($threads{$pid . $tid}->{'waitforcontinue'})) { 
-                $hr->{'appserverdelaycontinue'} = $threads{$pid . $tid}->{'gotcontinue'} -  
-                    $threads{$pid . $tid}->{'waitforcontinue'};
+                $hr->{'appserverdelaycontinue'} = sprintf("%.2f", $threads{$pid . $tid}->{'gotcontinue'} -  
+                    $threads{$pid . $tid}->{'waitforcontinue'});
             }
             if (defined($threads{$pid . $tid}->{'handshake_start'})) { 
-                $hr->{'appserverdelayhandshake'} = $threads{$pid . $tid}->{'handshake_stop'} -  
-                    $threads{$pid . $tid}->{'handshake_start'};
+                $hr->{'appserverdelayhandshake'} = sprintf("%.2f", $threads{$pid . $tid}->{'handshake_stop'} -  
+                    $threads{$pid . $tid}->{'handshake_start'});
             }
             if (defined($threads{$pid . $tid}->{'body_start'})) { 
-                $hr->{'bodyfwddelay'} = $threads{$pid . $tid}->{'body_stop'} -  
-                    $threads{$pid . $tid}->{'body_start'};
+                $hr->{'bodyfwddelay'} = sprintf("%.2f", $threads{$pid . $tid}->{'body_stop'} -  
+                    $threads{$pid . $tid}->{'body_start'});
             }
             if (defined($threads{$pid . $tid}->{'connfailure'})) { 
-                $hr->{'appserverdelayconnect'} = $threads{$pid . $tid}->{'connfailure'} -  
-                    $threads{$pid . $tid}->{'dq'};
+                $hr->{'appserverdelayconnect'} = sprintf("%.2f", $threads{$pid . $tid}->{'connfailure'} -  
+                    $threads{$pid . $tid}->{'dq'});
             }
             if (defined($threads{$pid . $tid}->{'respcode_start'})) { 
-                $hr->{'respcodedelay'} = $threads{$pid . $tid}->{'respcode_stop'} -  
-                    $threads{$pid . $tid}->{'respcode_start'};
+                $hr->{'respcodedelay'} = sprintf("%.2f", $threads{$pid . $tid}->{'respcode_stop'} -  
+                    $threads{$pid . $tid}->{'respcode_start'});
             }
 
 
@@ -331,13 +350,13 @@ while(nextline()) {
     elsif (/(htrequestWrite: Waiting for the continue response)/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
+            $threads{$pid . $tid}->{'waitforcontinue'} = my_str2time($timestr);
         }
     }
     elsif (/(DETAI.*100 Continue)/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
+            $threads{$pid . $tid}->{'gotcontinue'} = my_str2time($timestr);
         }
     }
 
@@ -348,13 +367,13 @@ while(nextline()) {
     elsif (/lib_stream: openStream: setting GSK_USER_DATA/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'handshake_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'handshake_start'} = my_str2time($timestr);
         }
     }
     elsif (/Created a new stream; queue was empty, socket/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'handshake_stop'} = str2time($timestr);
+            $threads{$pid . $tid}->{'handshake_stop'} = my_str2time($timestr);
         }
     }
 
@@ -365,14 +384,14 @@ while(nextline()) {
     elsif (/htrequestWrite: Writing the request content, length (\d+)/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'body_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'body_start'} = my_str2time($timestr);
             $threads{$pid . $tid}->{'body_len'} = $1;
         }
     }
     elsif (/cb_read_body: In the read body callback/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
+            $threads{$pid . $tid}->{'body_stop'} = my_str2time($timestr);
         }
     }
     #
@@ -382,7 +401,7 @@ while(nextline()) {
     elsif (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
-            $threads{$pid . $tid}->{'dq'} = str2time($timestr);
+            $threads{$pid . $tid}->{'dq'} = my_str2time($timestr);
         }
     }
     elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
@@ -391,7 +410,7 @@ while(nextline()) {
             $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
         }
         if (defined $threads{$pid . $tid}->{'dq'}) { 
-            $threads{$pid . $tid}->{'connfailure'} = str2time($timestr);
+            $threads{$pid . $tid}->{'connfailure'} = my_str2time($timestr);
         }
     }
     elsif (/(.*all could be down*)/) { 
@@ -431,15 +450,15 @@ while(nextline()) {
     elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
         readpidtid();
         if (defined $threads{$pid . $tid}) { 
-            $threads{$pid . $tid}->{'respcode_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'respcode_start'} = my_str2time($timestr);
             if (!defined $threads{$pid . $tid}->{'esipending'}) { 
-                $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
+                $threads{$pid . $tid}->{'read_response_start'} = my_str2time($timestr);
             }
             else { 
                 my $len = scalar @{$threads{$pid . $tid}->{'esipending'}};
                 if ($len > 0) { 
                     my @arr = @{$threads{$pid . $tid}->{'esipending'}};
-                    $arr[$len - 1]->{'esi_start'} = str2time($timestr);
+                    $arr[$len - 1]->{'esi_start'} = my_str2time($timestr);
                 }
             } 
         }
@@ -449,8 +468,8 @@ while(nextline()) {
         readpidtid();
         if (!defined($threads{$pid . $tid}->{'pastmainrequest'})) { 
     # The request from the client is found in the cache, vs a later ESI subrequest
-            $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
-            $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'read_response_end'} = my_str2time($timestr);
+            $threads{$pid . $tid}->{'read_response_start'} = my_str2time($timestr);
             $threads{$pid . $tid}->{'status'} = 200;
         }
         else { 
@@ -569,7 +588,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     }
 
     if ($r->{'appserverdelayconnect'} > 2 || $r->{'appserverdelayconnect'} > .25 * $r->{'delta'}) { 
-        push @why, sprintf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds \n";
+        push @why, sprintf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds delta is  $r->{'delta'} \n";
         $printed = 1;
     }
     if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .25 * $r->{'delta'}) { 
@@ -582,7 +601,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     }
 
     if ($r->{'respcodedelay'} > 5 || $r->{'respcodedelay'} > .75 * $r->{'delta'}) { 
-        push @why, sprintf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds \n";
+        push @why, sprintf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds delta=$r->{'delta'}\n";
         $printed = 1;
     }
 
@@ -667,7 +686,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
 
     my ($k, $v);
     while (($k, $v) = each(%threads)) { 
-        my $delay = str2time($timestr) - $v->{'time'};
+        my $delay = my_str2time($timestr) - $v->{'time'};
         print "Request didn't finish in this trace (which ended $delay seconds after the request began at line " . $v->{'begin'}  . 
             ") uri= " . $v->{'uri'} . "\n";
             my $r;
@@ -694,7 +713,7 @@ sub fmt() {
         }
     } 
 
-    $result = sprintf "%3ds (%3ds) lines: %6d,%6d status=%d uri=%s end=%s\n", 
+    $result = sprintf "%.2fs (%.2fs) lines: %6d,%6d status=%d uri=%s end=%s\n", 
         $r->{'delta'}, 
         $r->{'appserverdelay'} + $total_esi_seconds, 
         $r->{'begin_line'},  $r->{'end_line'}, 
@@ -712,7 +731,7 @@ sub finish_esi_request() {
     my $len = scalar @{$threads{$pid . $tid}->{'esipending'}};
     if ($len > 0) { 
         my @arr = @{$threads{$pid . $tid}->{'esipending'}};
-        $arr[$len - 1]->{'esi_end'} = str2time($timestr);
+        $arr[$len - 1]->{'esi_end'} = my_str2time($timestr);
         my $hr = pop @arr;
         if (!defined $threads{$pid . $tid}->{'esidone'}) { 
             $threads{$pid . $tid}->{'esidone'} = ();
