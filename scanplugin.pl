@@ -64,13 +64,16 @@ sub my_str2time {
        # add fractional seconds 
        $rv += $2/100000;
    }
+   if ($opt_debug) { 
+       print STDERR "Returning time '$rv' for input $timestr\n";
+   }
    return $rv;
 }
 
 sub readpidtid() { 
   my $line = $@;
    # Always grab the pid/tid and timestr
-    if (/\[(.*?(?:\.\d{5}))?\] (\w+) (\w+)/) { 
+    if (/\[(.*?(?:\.\d{5})?)\] (\w+) (\w+)/) { 
         $timestr = $1;
         $pid = $2;
         $tid = $3;
@@ -265,7 +268,7 @@ while(nextline()) {
         }
         if (!defined($threads{$pid . $tid}->{'time'})) { 
             if ($opt_debug) { 
-               print STDERR " didn't see start of req that's ending at line $ln: $_\n"; 
+               print STDERR " didn't see start of req that's ending at line $ln (or time parsing is busted): \n\t $_\n"; 
             }
         }
         else { 
