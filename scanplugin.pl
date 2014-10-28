@@ -598,7 +598,7 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
     }
 
     if ($r->{'respcodedelay'} > 5 || $r->{'respcodedelay'} > .75 * $r->{'delta'}) { 
-        push @why, sprintf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds delta=$r->{'delta'}\n";
+        push @why, sprintf "\twhy: Delay waiting for status code of $r->{'respcodedelay'} seconds\n";
         $printed = 1;
     }
 
