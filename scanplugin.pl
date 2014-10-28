@@ -62,11 +62,8 @@ sub my_str2time {
    if ($timestr =~ /(.*)\.(\d{5})$/) { 
        $rv = str2time($1);
        # add fractional seconds 
-       
-       print "my_str2time full second part is $rv 2=$2 " . $2/100000 . "str= $timestr\n";
        $rv += $2/100000;
    }
-   print "my_str2time return $rv for timestring $timestr\n";
    return $rv;
 }
 
