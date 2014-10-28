@@ -24,7 +24,7 @@ use Getopt::Std;
 
 my %threads= ();
 my @requests = ();
-my ($r, $i, $pid, $tid, $time, $timestr, $uri, $begin, $end);
+my ($r, $i, $pid, $tid, $time, $timestr, $begin, $end);
 my $ln;
 my $bld1;
 my @errorArray = ();
@@ -213,6 +213,9 @@ while(nextline()) {
     }
     elsif (/ws_handle_request: Handling WebSphere request/){ 
         readpidtid();
+        if ($opt_debug) { 
+            printf STDERR "Begin new req $ln: $_\n";
+        }
         if (defined($threads{$pid . $tid})) { 
             #printf STDERR "  dup ws_handle at line %d, old beginning line was %d\n", $ln, $threads{$pid . $tid}->{'begin'};
         }
@@ -221,19 +224,34 @@ while(nextline()) {
             $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
             $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
         }
-        undef $uri;
     }
 
     elsif (/websphere(?:Begin|Handle)Request: Request is:.*uri='([^']*)'/) { 
         readpidtid();
-        if (defined($threads{$pid . $tid})) { # first trace with URI in it
+        if (!defined($threads{$pid . $tid})) { 
+            # This is a DETAIL message. If they didn't have DEBUG/TRACE, we'll never see the
+            # 'ws_handle_request: Handling WebSphere request' above.
+            if ($opt_debug) {
+                printf STDERR "Begin new req (alt) $ln: $_\n";
+            }
+            $time = str2time($timestr);
+            $threads{$pid . $tid} = { time => $time, begin => $ln };  # start tracking this request
+            $threads{$pid . $tid}->{'pidtid'} = "$pid $tid";
+        }
+        else { 
             $threads{$pid . $tid}->{'uri'} = $1;  
         }
+        
     }
     elsif (/websphereEndRequest: Ending the request/) { 
         readpidtid();
+        if ($opt_debug) { 
+            printf STDERR "End req $ln: $_\n";
+        }
         if (!defined($threads{$pid . $tid}->{'time'})) { 
-            # print STDERR "  didn't see start of req that's ending at line $ln\n";
+            if ($opt_debug) { 
+               print STDERR "  didn't see start of req that's ending at line $ln: $_\n"; 
+            }
         }
         else { 
             my $hr;
