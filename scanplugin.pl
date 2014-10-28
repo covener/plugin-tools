@@ -33,6 +33,8 @@ my $bldcnt;
 my $sessionID;
 my $webserver;
 my $file = $ARGV[0];
+my $interleavedline;
+
 open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
 
 if (!defined($file)) { 
@@ -57,8 +59,28 @@ sub readpidtid() {
     }
 }
 
+# Read the next line, but look for a concatenated/buffered line.  8.0 and earlier
+# has a quirk where the newlines are not written in the same call to write()
+# so they may get interleaved with other processes' work.
+sub nextline() { 
+    my $line = undef;
+    if (defined($interleavedline)) { 
+        $line = $interleavedline;
+        $interleavedline = undef;
+    }
+    else { 
+        $line = <>;
+    }
+    $_ = $line;
+    if (/^(\[(?:.*?)(?:\.\d{5})?\] \w+ \w+.*)(\[(?:.*?)(?:\.\d{5})?\] \w+ \w+.*$)/) { 
+        $line = $_ = $1;
+        $interleavedline = $2 
+    }
+    return $line;
+}
+
 my $lastline;
-while(<>) { 
+while(nextline()) { 
     $lastline = $_;
     $ln++;
     chomp();
