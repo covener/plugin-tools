@@ -35,6 +35,7 @@ my $sessionID;
 my $webserver;
 my $file = $ARGV[0];
 my $interleavedline;
+my $reloads = 0;
 
 my %options = ();
 getopts("da", \%options) or die "invalid options";
@@ -119,7 +120,9 @@ while(nextline()) {
         $bldcnt++;
         $bld1 = "$1.$2.$3.$4";
     }
-
+    elsif (/Config was successfully reloaded/) { 
+       $reloads++;
+    }
     elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
         readpidtid();
         if(defined $threads{$pid . $tid}) { 
@@ -471,6 +474,7 @@ if ($webserver eq "Not Reported") {
     print "Webserver is $webserver \n\n";
 }
 
+print "plugin-cfg.xml reloads (across all processes): $reloads\n\n";
 #
 print "===\nListing Unique Error Messages.\n";
 foreach $r (@errorArray) {
