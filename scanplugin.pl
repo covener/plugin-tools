@@ -33,12 +33,13 @@ my @statsArray = ();
 my $bldcnt;
 my $sessionID;
 my $webserver;
-my $file = $ARGV[0];
 my $interleavedline;
 my $reloads = 0;
 
 my %options = ();
 getopts("da", \%options) or die "invalid options";
+
+my $file = $ARGV[0];
 if(!defined($file)) { 
   print "scanplugin.pl [options] http_plugin.log\n";
   print "\t-d debug to stderr\n";
