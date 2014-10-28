@@ -20,6 +20,7 @@
 
 use strict;
 use HTTP::Date; # part of LWP
+use Getopt::Std;
 
 my %threads= ();
 my @requests = ();
@@ -34,6 +35,12 @@ my $sessionID;
 my $webserver;
 my $file = $ARGV[0];
 my $interleavedline;
+
+my %options = ();
+getopts("da", \%options) or die "invalid options";
+
+my $opt_debug = $options{d};
+my $opt_all = $options{a};
 
 open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
 
@@ -103,6 +110,7 @@ while(nextline()) {
         push (@errorArray, $bldError) if ($addVal == 1);
     }
 
+    ##### Don't break if/elsif below ###
 
     # Getting Bld version.
     if (/PLUGIN: Bld version: (\w+).(\w+).(\w+).(\w+)/){
@@ -110,7 +118,7 @@ while(nextline()) {
         $bld1 = "$1.$2.$3.$4";
     }
 
-    if (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
+    elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
         readpidtid();
         if(defined $threads{$pid . $tid}) { 
             $threads{$pid . $tid}->{'respcode_stop'} = str2time($timestr);
@@ -127,7 +135,7 @@ while(nextline()) {
     }
 
     # Getting Webserver type
-    if (/PLUGIN: Webserver: (.*)/){
+    elsif (/PLUGIN: Webserver: (.*)/){
         $webserver = $1
     }
 
@@ -292,159 +300,152 @@ while(nextline()) {
         }
     }
 
+    #
+    # Time waitforcontinue
+    #
 
-    if (/\[(.*?)(?:\.\d{5})?\] (\w+) (\w+)/) {
-        $timestr = $1;
-        $pid = $2;
-        $tid = $3;
-    }
-
-#
-# Time waitforcontinue
-#
-
-elsif (/(htrequestWrite: Waiting for the continue response)/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
-    }
-}
-elsif (/(DETAI.*100 Continue)/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
-    }
-}
-
-#
-# Time handshake
-#
-
-elsif (/lib_stream: openStream: setting GSK_USER_DATA/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'handshake_start'} = str2time($timestr);
-    }
-}
-elsif (/Created a new stream; queue was empty, socket/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'handshake_stop'} = str2time($timestr);
-    }
-}
-
-#
-# Time body 
-#
-
-elsif (/htrequestWrite: Writing the request content, length (\d+)/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'body_start'} = str2time($timestr);
-        $threads{$pid . $tid}->{'body_len'} = $1;
-    }
-}
-elsif (/cb_read_body: In the read body callback/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
-    }
-}
-#
-# Track conn failure, conn delay
-#
-
-elsif (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'dq'} = str2time($timestr);
-    }
-}
-elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
-    }
-    if (defined $threads{$pid . $tid}->{'dq'}) { 
-        $threads{$pid . $tid}->{'connfailure'} = str2time($timestr);
-    }
-}
-elsif (/(.*all could be down*)/) { 
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
-    }
-}
-elsif (/(.*WSFO*)/) { 
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'WSFO'} = { time=>$timestr, line=>$ln , text=>$1};
-    }
-}
-elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
-    }
-}
-elsif (/(.*Write failed.*)/) { # write failure [to server]
-    readpidtid();
-    if (defined $threads{$pid . $tid}) {
-        $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
-    }
-}
-elsif (/serverSetFailoverStatus: Marking (.+) down/) { 
-    readpidtid();
-    if (defined $threads{$pid . $tid}) { 
-        if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
-            $threads{$pid . $tid}->{'markdowns'} = ();
+    elsif (/(htrequestWrite: Waiting for the continue response)/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'waitforcontinue'} = str2time($timestr);
         }
-        push @{$threads{$pid . $tid}->{'markdowns'}}, { server=>$1, time=>$timestr, line=>$ln };
     }
-}
+    elsif (/(DETAI.*100 Continue)/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'gotcontinue'} = str2time($timestr);
+        }
+    }
 
-elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
-    readpidtid();
-    if (defined $threads{$pid . $tid}) { 
-        $threads{$pid . $tid}->{'respcode_start'} = str2time($timestr);
-        if (!defined $threads{$pid . $tid}->{'esipending'}) { 
+    #
+    # Time handshake
+    #
+
+    elsif (/lib_stream: openStream: setting GSK_USER_DATA/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'handshake_start'} = str2time($timestr);
+        }
+    }
+    elsif (/Created a new stream; queue was empty, socket/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'handshake_stop'} = str2time($timestr);
+        }
+    }
+
+    #
+    # Time body 
+    #
+
+    elsif (/htrequestWrite: Writing the request content, length (\d+)/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'body_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'body_len'} = $1;
+        }
+    }
+    elsif (/cb_read_body: In the read body callback/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'body_stop'} = str2time($timestr);
+        }
+    }
+    #
+    # Track conn failure, conn delay
+    #
+
+    elsif (/(transportStreamDequeue: Checking for existing stream from the queue)/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'dq'} = str2time($timestr);
+        }
+    }
+    elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+        if (defined $threads{$pid . $tid}->{'dq'}) { 
+            $threads{$pid . $tid}->{'connfailure'} = str2time($timestr);
+        }
+    }
+    elsif (/(.*all could be down*)/) { 
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
+    elsif (/(.*WSFO*)/) { 
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'WSFO'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
+    elsif (/(.*fired.*)/) { # connecttimeout or serveriotimeout
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'miscerror'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
+    elsif (/(.*Write failed.*)/) { # write failure [to server]
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
+    elsif (/serverSetFailoverStatus: Marking (.+) down/) { 
+        readpidtid();
+        if (defined $threads{$pid . $tid}) { 
+            if (!defined($threads{$pid . $tid}->{'markdowns'})) { 
+                $threads{$pid . $tid}->{'markdowns'} = ();
+            }
+            push @{$threads{$pid . $tid}->{'markdowns'}}, { server=>$1, time=>$timestr, line=>$ln };
+        }
+    }
+
+    elsif (/lib_htresponse: htresponseRead: Reading the response/) { 
+        readpidtid();
+        if (defined $threads{$pid . $tid}) { 
+            $threads{$pid . $tid}->{'respcode_start'} = str2time($timestr);
+            if (!defined $threads{$pid . $tid}->{'esipending'}) { 
+                $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
+            }
+            else { 
+                my $len = scalar @{$threads{$pid . $tid}->{'esipending'}};
+                if ($len > 0) { 
+                    my @arr = @{$threads{$pid . $tid}->{'esipending'}};
+                    $arr[$len - 1]->{'esi_start'} = str2time($timestr);
+                }
+            } 
+        }
+    }
+
+    elsif (/getResponseFromCache: cache hit/) { 
+        readpidtid();
+        if (!defined($threads{$pid . $tid}->{'pastmainrequest'})) { 
+    # The request from the client is found in the cache, vs a later ESI subrequest
+            $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
             $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
+            $threads{$pid . $tid}->{'status'} = 200;
         }
         else { 
-            my $len = scalar @{$threads{$pid . $tid}->{'esipending'}};
-            if ($len > 0) { 
-                my @arr = @{$threads{$pid . $tid}->{'esipending'}};
-                $arr[$len - 1]->{'esi_start'} = str2time($timestr);
+            begin_esi_request($pid, $tid);
+    # an ESI req served out of the cahce instead of seeing HTTP/1.1...
+            if (defined $threads{$pid . $tid} && defined $threads{$pid . $tid}->{'esipending'}) {
+                finish_esi_request($pid, $tid, 1); 
             }
-        } 
-    }
-}
-
-elsif (/getResponseFromCache: cache hit/) { 
-    readpidtid();
-    if (!defined($threads{$pid . $tid}->{'pastmainrequest'})) { 
-# The request from the client is found in the cache, vs a later ESI subrequest
-        $threads{$pid . $tid}->{'read_response_end'} = str2time($timestr);
-        $threads{$pid . $tid}->{'read_response_start'} = str2time($timestr);
-        $threads{$pid . $tid}->{'status'} = 200;
-    }
-    else { 
-        begin_esi_request($pid, $tid);
-# an ESI req served out of the cahce instead of seeing HTTP/1.1...
-        if (defined $threads{$pid . $tid} && defined $threads{$pid . $tid}->{'esipending'}) {
-            finish_esi_request($pid, $tid, 1); 
         }
     }
-}
 
-elsif (/getResponseFromCache: cache miss/) { 
-    readpidtid();
-    begin_esi_request($pid, $tid);
-} 
-elsif (/esiRulesGetCacheId: cache miss/) { 
-    readpidtid();
-    begin_esi_request($pid, $tid);
-} 
+    elsif (/getResponseFromCache: cache miss/) { 
+        readpidtid();
+        begin_esi_request($pid, $tid);
+    } 
+    elsif (/esiRulesGetCacheId: cache miss/) { 
+        readpidtid();
+        begin_esi_request($pid, $tid);
+    } 
 
 } # end while
 
@@ -617,6 +618,11 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
 
     if (!$printed && $r->{'status'} == 500) { 
         push @why, sprintf "\twhy: ISE from AppServer\n";
+        $printed = 1;
+    }
+
+    if (!$printed && $opt_all) {
+        push @why, sprintf "\twhy: debug switch -a passed\n";
         $printed = 1;
     }
     
