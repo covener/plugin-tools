@@ -38,18 +38,20 @@ my $interleavedline;
 
 my %options = ();
 getopts("da", \%options) or die "invalid options";
+if(!defined($file)) { 
+  print "scanplugin.pl [options] http_plugin.log\n";
+  print "\t-d debug to stderr\n";
+  print "\t-a summarize all requests, not just interesting ones\n";
+  exit 1;
+}
 
 my $opt_debug = $options{d};
 my $opt_all = $options{a};
 
 open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
 
-if (!defined($file)) { 
-    printf "$0 /path/to/http-plugin.log\n";
-    exit 1;
-}
-$webserver = "Not Reported";
 $bld1 = "Not Reported";
+$webserver = "Not Reported";
 
 sub readpidtid() { 
   my $line = $@;
