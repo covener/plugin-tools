@@ -12,7 +12,7 @@ fi
 while true; do 
   sleep .05 
   SSOUT=$(ss -teino state ESTABLISHED | grep -A1 "$1")
-  CWNDETC=$(echo $SSOUT | grep cwnd: | sed -r -e 's/.*(rto.*) cwnd:([0-9]+) .*/\2 \1/g')
+  CWNDETC=$(echo $SSOUT | grep cwnd: | sed -r -e 's/.*(rto.*) cwnd:([0-9]+) (.*)/\2 \1 \3/g')
   CWND=$(echo $SSOUT | grep cwnd: | sed -r -e 's/.*(rto.*) cwnd:([0-9]+) .*/\2/g')
   CWNDETC=`echo $CWNDETC|sed -r -e 's/(rtt:[0-9]+)(\S)*/\1/g'`
   if [ ! -z "$CWNDETC" ]; then
