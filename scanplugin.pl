@@ -139,7 +139,6 @@ while(nextline()) {
 
     elsif (/ExtendedHandshake-Response:/) { 
         readpidtid();
-        print "extshake_end\n";
         if (defined $threads{$pid . $tid}) {
             $threads{$pid . $tid}->{'extshake_end'} = my_str2time($timestr);
         }
@@ -453,7 +452,6 @@ while(nextline()) {
     }
     elsif (/websphereExtendedHandshake: Waiting for the extended handshake response/) { 
         readpidtid();
-        print "extshake_begin\n";
         if (defined $threads{$pid . $tid}) {
             $threads{$pid . $tid}->{'extshake_begin'} = my_str2time($timestr);
         }
