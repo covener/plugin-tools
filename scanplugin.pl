@@ -136,6 +136,15 @@ while(nextline()) {
         $bldcnt++;
         $bld1 = "$1.$2.$3.$4";
     }
+
+    elsif (/ExtendedHandshake-Response:/) { 
+        readpidtid();
+        print "extshake_end\n";
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'extshake_end'} = my_str2time($timestr);
+        }
+    }
+
     elsif (/Config was successfully reloaded/) { 
        $reloads++;
     }
@@ -319,12 +328,23 @@ while(nextline()) {
                 $hr->{'appserverdelayconnect'} = sprintf("%.2f", $threads{$pid . $tid}->{'connfailure'} -  
                     $threads{$pid . $tid}->{'dq'});
             }
+            elsif (defined($threads{$pid . $tid}->{'connect_start'})) { 
+                $hr->{'appserverdelayconnect'} = sprintf("%.2f", $threads{$pid . $tid}->{'connect_end'} -  
+                    $threads{$pid . $tid}->{'connect_start'});
+            }
+            if (defined($threads{$pid . $tid}->{'connect_what'})) { 
+                $hr->{'appserverdelayconnect_what'} = sprintf("%.2f", $threads{$pid . $tid}->{'connect_what'} -  
+                    $threads{$pid . $tid}->{'connect_end'});
+            }
+
             if (defined($threads{$pid . $tid}->{'respcode_start'})) { 
                 $hr->{'respcodedelay'} = sprintf("%.2f", $threads{$pid . $tid}->{'respcode_stop'} -  
                     $threads{$pid . $tid}->{'respcode_start'});
             }
-
-
+            if (defined($threads{$pid . $tid}->{'extshake_begin'})) { 
+                $hr->{'extshake_delay'} = sprintf("%.2f", $threads{$pid . $tid}->{'extshake_end'} -  
+                    $threads{$pid . $tid}->{'extshake_begin'});
+            }
             push @requests, $hr;
             delete $threads{$pid . $tid};
         }
@@ -404,6 +424,18 @@ while(nextline()) {
             $threads{$pid . $tid}->{'dq'} = my_str2time($timestr);
         }
     }
+    elsif (/Have a connect timeout of/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'connect_start'} = my_str2time($timestr);
+        }
+    }
+    elsif (/Setting socket to non-block for ServerIOTimeout/) {
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'connect_end'} = my_str2time($timestr);
+        }
+    }
     elsif (/(.*Connection to.*ailed.*)/) { # non-block connect fail
         readpidtid();
         if (defined $threads{$pid . $tid}) {
@@ -411,6 +443,19 @@ while(nextline()) {
         }
         if (defined $threads{$pid . $tid}->{'dq'}) { 
             $threads{$pid . $tid}->{'connfailure'} = my_str2time($timestr);
+        }
+    }
+    elsif (/(.*ocket \d+ connected.*)/) { # connect OK
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'connect_what'} = my_str2time($timestr);
+        }
+    }
+    elsif (/websphereExtendedHandshake: Waiting for the extended handshake response/) { 
+        readpidtid();
+        print "extshake_begin\n";
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'extshake_begin'} = my_str2time($timestr);
         }
     }
     elsif (/(.*all could be down*)/) { 
@@ -591,6 +636,10 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         push @why, sprintf "\twhy: TCP connect delay of $r->{'appserverdelayconnect'} seconds delta is  $r->{'delta'} \n";
         $printed = 1;
     }
+    if ($r->{'appserverdelayconnect_what'} > 1) { 
+        push @why, sprintf "\twhy: Mystery delay betwen connect and setnonblock of $r->{'appserverdelayconnect_what'} seconds\n";
+        $printed = 1;
+    }
     if ($r->{'appserverdelayhandshake'} > 4 || $r->{'appserverdelayhandshake'} > .25 * $r->{'delta'}) { 
         push @why, sprintf "\twhy: TLS handshake delay of $r->{'appserverdelayhandshake'} seconds \n";
         $printed = 1;
@@ -605,6 +654,10 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         $printed = 1;
     }
 
+    if ($r->{'extshake_delay'} >= 1 || $r->{'extshake_delay'} > .75 * $r->{'delta'}) { 
+        push @why, sprintf "\twhy: Extended handshake delay of $r->{'extshake_delay'} seconds\n";
+        $printed = 1;
+    }
     if (defined $r->{'posterror'}) { 
         push @why, sprintf "\twhy: post error: '%s' at line %d\n", $r->{'posterror'}->{'code'}, $r->{'posterror'}->{'line'};
         $printed = 1;
