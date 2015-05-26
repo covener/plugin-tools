@@ -462,7 +462,7 @@ while(nextline()) {
             $threads{$pid . $tid}->{'clusterdown'} = { time=>$timestr, line=>$ln , text=>$1};
         }
     }
-    elsif (/(.*WSFO*)/) { 
+    elsif (/(.*\$WSFO*)/) { 
         readpidtid();
         if (defined $threads{$pid . $tid}) {
             $threads{$pid . $tid}->{'WSFO'} = { time=>$timestr, line=>$ln , text=>$1};
