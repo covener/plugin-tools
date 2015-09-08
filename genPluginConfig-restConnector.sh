@@ -72,7 +72,6 @@ if [ $? -eq 0 ]; then
 fi
 
 
-cat $TEMPFILE
 unlink $TEMPFILE
 
 
