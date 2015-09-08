@@ -27,3 +27,7 @@ in WebSphere Application Server.
     same keystore from the dmgr to the webserver (which is the preferred 
     way to ensure the right CAs are trusted) any changes from this tool 
     will be lost.
+
+  * genPluginConfig-restConnector.sh
+    Shell script demonstrating how to generate plugin-cfg.xml over the Liberty
+    restConnector (JMX over HTTP)
