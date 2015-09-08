@@ -47,11 +47,19 @@ URL=$(echo $URL | sed -e 's/^https:\/\///')
 URL="https://${URL}"
 
 $WGET --http-user=$JMX_USER --http-password=$JMX_PASS ${URL}/IBMJMXConnectorREST/mbeans/ -O/dev/null
-if [ $? -ne 0 ]; then
-  echo "URL or user/password parameter looks wrong, $URL/IBMJMXConnectorREST/mbeans/ returned an error (make sure restConnector feature is loaded and security configured)."
-  exit 2
+RC=$?
+if [ $RC -eq 6 ]; then
+  echo "JMX Rest Connector credentials appear wrong, edit $0"
+  exit $RC 
+elif [ $RC -eq 4 ]; then
+  echo "Network error with url $URL, check host/IP and port manually"
+  exit $RC 
+elif [ $RC -ne 0 ]; then
+  echo "Unknown error $RC testing $URL/IBMJMXConnectorREST/mbeans/ returned an error (make sure restConnector feature is loaded on target server)."
+  exit $RC
 fi
 
+# Prepare the payload for the POST
 TEMPFILE=`mktemp`
 cat <<==end > $TEMPFILE
 { 
@@ -63,14 +71,19 @@ cat <<==end > $TEMPFILE
 }
 ==end
 
-
+BEAN_URL="${URL}/IBMJMXConnectorREST/mbeans/WebSphere%3Aname%3Dcom.ibm.ws.jmx.mbeans.generatePluginConfig/operations/generatePluginConfig"
 $WGET --body-file $TEMPFILE --header="Content-Type: application/json" --method=POST  \
-     --no-check-certificate --http-user=$JMX_USER --http-password=$JMX_PASS         \
-     "${URL}/IBMJMXConnectorREST/mbeans/WebSphere%3Aname%3Dcom.ibm.ws.jmx.mbeans.generatePluginConfig/operations/generatePluginConfig" -O/dev/null
+     --no-check-certificate --http-user=$JMX_USER --http-password=$JMX_PASS          \
+     ${BEAN_URL}                                                                     \
+     -O/dev/null
+RC=$?
 
 if [ $? -eq 0 ]; then
   echo "Success, plugin-cfg.xml should have been generated on the Liberty server"
+else
+  echo "Unknown error $RC invoking $BEAN_URL (make sure restConnector feature is loaded on target server)."
 fi
+
 
 unlink $TEMPFILE
 
