@@ -78,10 +78,11 @@ $WGET --body-file $TEMPFILE --header="Content-Type: application/json" --method=P
      -O/dev/null
 RC=$?
 
-if [ $? -eq 0 ]; then
+if [ $RC -eq 0 ]; then
   echo "Success, plugin-cfg.xml should have been generated on the Liberty server"
 else
   echo "Unknown error $RC invoking $BEAN_URL (make sure restConnector feature is loaded on target server)."
+  exit $RC
 fi
 
 
