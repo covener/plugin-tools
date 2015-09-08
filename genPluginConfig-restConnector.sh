@@ -16,11 +16,12 @@ DEFAULT_WEBSERVER_NAME=webserver1
 # When configuring the restConnector, you have to specify at least a 
 # quick-start security user and password. These will be visible in the
 # process table.
+
+# TODO: use .wgetrc/.netrc to mask these.
 JMX_USER=theUser
 JMX_PASS=thePassword
 
-
-WGET="wget --no-check-certificate"
+WGET="wget -q --no-check-certificate"
 ###########################################################################
 
 PLUGIN_ROOT=${2:-$DEFAULT_PLUGIN_ROOT}
@@ -37,17 +38,17 @@ if [ $# -lt 1 ]; then
   exit 1
 fi
 
-
-# Remove the https:// prefix to allow host:port input to work too 
 URL=$1
-URL=$(echo $URL | sed -e 's/^https:\/\///')
-URL="https://${URL}"
 # Remove trailing slash
 URL=$(echo $URL | sed -e 's/\/$//')
+# Remove https prefi
+URL=$(echo $URL | sed -e 's/^https:\/\///')
+# Remove the https:// prefix to allow host:port input to work too 
+URL="https://${URL}"
 
-$WGET -q --http-user=$JMX_USER --http-password=$JMX_PASS $URL/IBMJMXConnectorREST/mbeans/ -O/dev/null
+$WGET --http-user=$JMX_USER --http-password=$JMX_PASS ${URL}/IBMJMXConnectorREST/mbeans/ -O/dev/null
 if [ $? -ne 0 ]; then
-  echo "URL or user/password parameter looks wrong, $URL/IBMJMXConnectorREST/mbeans/ returned an error"
+  echo "URL or user/password parameter looks wrong, $URL/IBMJMXConnectorREST/mbeans/ returned an error (make sure restConnector feature is loaded and security configured)."
   exit 2
 fi
 
@@ -63,14 +64,13 @@ cat <<==end > $TEMPFILE
 ==end
 
 
-$WGET -q --body-file $TEMPFILE --header="Content-Type: application/json" --method=POST  \
+$WGET --body-file $TEMPFILE --header="Content-Type: application/json" --method=POST  \
      --no-check-certificate --http-user=$JMX_USER --http-password=$JMX_PASS         \
-     "$URL/IBMJMXConnectorREST/mbeans/WebSphere%3Aname%3Dcom.ibm.ws.jmx.mbeans.generatePluginConfig/operations/generatePluginConfig" -O/dev/null
+     "${URL}/IBMJMXConnectorREST/mbeans/WebSphere%3Aname%3Dcom.ibm.ws.jmx.mbeans.generatePluginConfig/operations/generatePluginConfig" -O/dev/null
 
 if [ $? -eq 0 ]; then
   echo "Success, plugin-cfg.xml should have been generated on the Liberty server"
 fi
-
 
 unlink $TEMPFILE
 
