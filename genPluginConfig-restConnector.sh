@@ -4,6 +4,9 @@
 # on a lberty instance with the restConnector configured.
 # Author: ecovener@us.ibm.com
 
+# Liberty setup hints: https://developer.ibm.com/wasdev/docs/accessing-libertys-jmx-rest-apis/
+
+
 # Edit this section as desired
 ###########################################################################
 # WebServer details
@@ -20,8 +23,8 @@ JMX_PASS=thePassword
 WGET="wget --no-check-certificate"
 ###########################################################################
 
-PLUGIN_ROOT=${2:$DEFAULT_PLUGIN_ROOT}
-WEBSERVER_NAME=${3:$DEFAULT_WEBSERVER_NAME}
+PLUGIN_ROOT=${2:-$DEFAULT_PLUGIN_ROOT}
+WEBSERVER_NAME=${3:-$DEFAULT_WEBSERVER_NAME}
 
 # Edit below at your own risk.
 
@@ -68,6 +71,8 @@ if [ $? -eq 0 ]; then
   echo "Success, plugin-cfg.xml should have been generated on the Liberty server"
 fi
 
+
+cat $TEMPFILE
 unlink $TEMPFILE
 
 
