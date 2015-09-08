@@ -21,7 +21,6 @@
 
 # Liberty setup hints: https://developer.ibm.com/wasdev/docs/accessing-libertys-jmx-rest-apis/
 
-
 # Edit this section as desired
 ###########################################################################
 # WebServer details
@@ -38,6 +37,8 @@ JMX_PASS=thePassword
 
 WGET="wget -q --no-check-certificate"
 ###########################################################################
+
+trap 'rm -f $TEMPFILE' EXIT
 
 PLUGIN_ROOT=${2:-$DEFAULT_PLUGIN_ROOT}
 WEBSERVER_NAME=${3:-$DEFAULT_WEBSERVER_NAME}
@@ -99,9 +100,4 @@ else
   echo "Unknown error $RC invoking $BEAN_URL (make sure restConnector feature is loaded on target server)."
   exit $RC
 fi
-
-
-unlink $TEMPFILE
-
-
 
