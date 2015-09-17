@@ -1,0 +1,114 @@
+#!/bin/sh
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+SCRIPT="new_install_root"
+
+## This script should be called when the read-only ihs install has changed.
+DIFF=/bin/diff
+SED=/bin/sed
+
+usage() {
+    printf "Usage: $0 [-h] [-f] -s INSTALL_TO_MOVE -t NEW_READONLY_ROOT\n"
+    printf "\t-h\t Display this help\n"
+    printf "\t-f\t Force moving to the new readonly root even if it doesn't exist\n"
+    printf "\t-s\t The source symlink install root to change\n"
+    printf "\t-t\t The target readonly root to change the source to\n"
+}
+
+while getopts "h?fs:t:" opt; do
+    case "$opt" in
+        h|\?)
+            usage
+            exit 0
+            ;;
+        f)
+            FORCE_SWITCH=1
+            ;;
+        s)
+            RW_ROOT=$OPTARG
+            ;;
+        t)
+            NEW_RO_ROOT=$OPTARG
+            ;;
+    esac
+done
+
+echo $RW_ROOT|grep "^/" > /dev/null
+if [ $? != 0 ]; then
+  echo Symlink install directory \"$RW_ROOT\" must be an absolute path
+  usage
+  exit 1
+fi
+
+echo $NEW_RO_ROOT|grep "^/" > /dev/null
+if [ $? != 0 ]; then
+  echo New read-only directory \"$NEW_RO_ROOT\" should be an absolute path
+  usage
+  exit 1
+fi
+
+if [ ! -L $RW_ROOT/bin/httpd ] ; then
+  echo "Install directory \"$RW_ROOT\" doesn't look like a symlinked install (bin/httpd is not a symbolic link)"
+  usage
+  exit 1
+fi
+
+# Make sure the new read-only root looks like an install unless the user knows better
+if [ "x$FORCE_SWITCH" = "x" ]; then
+    if [ ! -f $NEW_RO_ROOT/bin/httpd ]; then
+      echo "$NEW_RO_ROOT doesn't look like a read-only install root ($NEW_RO_ROOT/bin/httpd doesn't exist)"
+      usage
+      exit 1
+    elif [ -L $NEW_RO_ROOT/bin/httpd ]; then
+      echo "$NEW_RO_ROOT doesn't look like a read-only install root - ($NEW_RO_ROOT/bin/httpd is a symlink)"
+      usage
+      exit 1
+    fi
+fi
+
+# derive root of the current read only tree from bin/httpd symlink target
+CURRENT_RO_ROOT=`ls -l $RW_ROOT/bin/httpd | $SED -e 's#.*-> \(.*\)/bin/httpd#\1#'`
+  
+for F in `find $RW_ROOT`; do
+  # Create new symlinks to the files in the NEW_RO_ROOT
+  if [ -L $F ] && ls -ld $F | grep "\-> $CURRENT_RO_ROOT" > /dev/null ; then
+    # Parsing the output of ls is generally a bad idea, but readlink doesn't exist on z/OS
+    NEW_PATH=`ls -l $F | $SED -e "s#.*-> ##" | $SED -e "s#$CURRENT_RO_ROOT#$NEW_RO_ROOT#"`
+    echo "'$F' -> '$NEW_PATH'"
+    rm $F
+    ln -sf $NEW_PATH $F
+  fi
+done
+
+OLD_LEVEL=`grep 'IBM HTTP Server ' $RW_ROOT/version.signature`
+OLD_LEVEL=`echo $OLD_LEVEL | sed -e "s;IBM HTTP Server ;;"`		 
+cp $NEW_RO_ROOT/version.signature $RW_ROOT/.
+NEW_LEVEL=`grep 'IBM HTTP Server ' $NEW_RO_ROOT/version.signature`
+NEW_LEVEL=`echo $NEW_LEVEL | sed -e "s;IBM HTTP Server ;;"`		 
+
+if [ -f $NEW_RO_ROOT/bin/postinst ]; then
+    "$NEW_RO_ROOT/bin/postinst" -t update -i "$RW_ROOT"
+else
+    "$CURRENT_RO_ROOT/bin/postinst" -t update -i "$RW_ROOT"
+fi
+
+if [ $? != 0 ]; then
+    echo "postinst failed; newly moved root may be unusable"
+    exit 1
+else
+    echo "Moving from $OLD_LEVEL at $CURRENT_RO_ROOT to $NEW_LEVEL at $NEW_RO_ROOT complete"
+    exit 0
+fi
