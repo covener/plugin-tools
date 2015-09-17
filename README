@@ -31,3 +31,13 @@ in WebSphere Application Server.
   * genPluginConfig-restConnector.sh
     Shell script demonstrating how to generate plugin-cfg.xml over the Liberty
     restConnector (JMX over HTTP)
+
+  * mpmstats_blame*.pl
+    Basic/starter parsers of 'mpmext' logformat logs http://publib.boulder.ibm.com/httpserv/ihsdiag/mpmstats_module_timing.html
+
+  * new_install_root
+    A short script that allows a driving z/OS system to relink an IHS 
+    instance/server/rw/config directory into a final path that may not 
+    exist yet.
+   
+     
