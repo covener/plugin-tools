@@ -39,5 +39,9 @@ in WebSphere Application Server.
     A short script that allows a driving z/OS system to relink an IHS 
     instance/server/rw/config directory into a final path that may not 
     exist yet.
+
+  * list_ca_details.sh
+    Dumps a KDB's CA contents in plain text so it can be searched or
+    post-processed.
    
      
