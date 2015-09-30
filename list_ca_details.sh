@@ -20,21 +20,15 @@
 # ecovener@us.ibm.com
 
 if [ $# -lt 1 ]; then
-  echo "$0 foo.kdb password"
+  echo "$0 foo.kdb"
   exit 1
 fi
 
 KDB=$1
-PW=$2
 
-if [ $# -eq 1 ]; then
- STHFILE=`echo $KDB | sed -e 's/kdb$/sth/g'`
- PW=`unstash.pl $STHFILE`
-fi
-
-gsk8capicmd -cert -list -db $KDB -pw "$PW" | grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
+gsk8capicmd -cert -list -stashed -db $KDB | grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
 | while read line; do 
-   gsk8capicmd -cert -details -label "$line" -db $KDB -pw "$PW"; 
+   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB ; 
 done
 
 
