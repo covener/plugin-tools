@@ -26,10 +26,14 @@ fi
 
 KDB=$1
 
+DIR=`mktemp -d`
+
 gsk8capicmd -cert -list -stashed -db $KDB | grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
 | while read line; do 
-   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB ; 
+   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/$line" ; 
 done
+
+echo "Check out certs in $DIR"
 
 
 
