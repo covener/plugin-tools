@@ -53,4 +53,6 @@ in WebSphere Application Server.
     Dumps a KDB's CA contents in plain text so it can be searched or
     post-processed.
        
-     
+  * imifixhelper.sh
+  
+    Example/Sample script to drive IIM command line fix install/list/removal   
