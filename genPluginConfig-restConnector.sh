@@ -19,6 +19,8 @@
 # on a lberty instance with the restConnector configured.
 # Author: ecovener@us.ibm.com
 
+# TODO: .netrc, remove bashisms
+
 # Liberty setup hints: https://developer.ibm.com/wasdev/docs/accessing-libertys-jmx-rest-apis/
 
 # Edit this section as desired
@@ -31,7 +33,6 @@ DEFAULT_WEBSERVER_NAME=webserver1
 # quick-start security user and password. These will be visible in the
 # process table.
 
-# TODO: use .wgetrc/.netrc to mask these.
 JMX_USER=theUser
 JMX_PASS=thePassword
 
