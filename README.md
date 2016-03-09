@@ -56,3 +56,9 @@ in WebSphere Application Server.
   * imifixhelper.sh
   
     Example/Sample script to drive IIM command line fix install/list/removal   
+
+  * plugingen.war
+  
+    Example/Sample web module to generate plugin-cfg.xml without jconsole.
+    Source and more info here: https://github.com/covener/plugingen_sample_app
+    
