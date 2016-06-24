@@ -35,6 +35,8 @@ my $sessionID;
 my $webserver;
 my $interleavedline;
 my $reloads = 0;
+use Carp; $SIG{ __DIE__ } = sub { Carp::confess( @_ ) };
+
 
 my %options = ();
 getopts("da", \%options) or die "invalid options";
@@ -146,6 +148,10 @@ while(nextline()) {
 
     elsif (/Config was successfully reloaded/) { 
        $reloads++;
+        readpidtid();
+        if(defined $threads{$pid . $tid}) { 
+            $threads{$pid . $tid}->{'reloaded'} = 1;
+        }
     }
     elsif (/HTTP\/1.\d (\d+) (?!Continue)\w+/) {
         readpidtid();
@@ -235,7 +241,7 @@ while(nextline()) {
         }
         push (@statsArray, $statsInfo) if ($addVal == 1);              #Add new entry
     }
-    elsif (/ws_handle_request: Handling WebSphere request/){ 
+    elsif (/WebSphere will handle/){ 
         readpidtid();
         if ($opt_debug) { 
             printf STDERR "Begin new req $ln: $_\n";
@@ -343,6 +349,9 @@ while(nextline()) {
             if (defined($threads{$pid . $tid}->{'extshake_begin'})) { 
                 $hr->{'extshake_delay'} = sprintf("%.2f", $threads{$pid . $tid}->{'extshake_end'} -  
                     $threads{$pid . $tid}->{'extshake_begin'});
+            }
+            if (defined($threads{$pid . $tid}->{'reloaded'})) { 
+                $hr->{'reloaded'};
             }
             push @requests, $hr;
             delete $threads{$pid . $tid};
@@ -625,6 +634,11 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
             $total_esi_seconds += $_->{'esi_end'} - $_->{'esi_start'}; 
         }
     } 
+
+    if (defined($r->{'reloaded'})) { 
+        push @why, sprintf "\twhy: XML reload during request";
+        $printed = 1;
+    }
     if ($r->{'appserverdelaycontinue'} > 2 || $r->{'appserverdelaycontinue'} > .25 * $r->{'delta'}) { 
         push @why, sprintf "\twhy: 100-continue delay of $r->{'appserverdelaycontinue'} seconds \n";
         $printed = 1;
