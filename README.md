@@ -57,6 +57,10 @@ in WebSphere Application Server.
   
     Example/Sample script to drive IIM command line fix install/list/removal   
 
+  * ihsinstall.sh
+
+    Example/Sample script to download/update IIM and install IHS/PlG/WCT v9
+
   * plugingen.war
   
     Example/Sample web module to generate plugin-cfg.xml without jconsole.
