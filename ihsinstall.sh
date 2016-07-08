@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# This script installs IIM, IHS, PLG, and WCT. If there's no global IIM, a new one is installed. If
-# a pre-1.8.5 global IM is installed, it is updated.
+# This script installs IIM, IHS, PLG, and WCT. 
+#  If there's no global IIM, a new one is installed, bootstrapped by 1.6.0
+#  If an older global IIM is found, it's updated to 1.8.5
 
 # Dependencies: Nearly nothing
 
