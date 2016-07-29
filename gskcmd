@@ -3,8 +3,11 @@
 # z/os ikeycmd wrapper that "reliably" adds CMS v3 support.
 # Author: covener@apache.org
 
-# Any modern IBM jre
-JAVA_HOME=/usr/lpp/java/java800/J8.0_64/
+if [ -n "$JAVA_HOME" ]; then
+  echo "Using JAVA_HOME=$JAVA_HOME"
+else 
+  JAVA_HOME=/usr/lpp/java/java800/J8.0_64/
+fi
 
 # Should not require edits below this line
 
