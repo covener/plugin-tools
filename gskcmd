@@ -8,24 +8,27 @@ JAVA_HOME=/usr/lpp/java/java800/J8.0_64/
 
 # Should not require edits below this line
 
+> /tmp/java.security.append
 
 # Check for non-v3 CMS provider in java.security.  
 if grep CMSProvider $JAVA_HOME/lib/security/java.security >/dev/null; then
   if ! grep -i "CMSProvider V3" $JAVA_HOME/lib/security/java.security; then
     echo "CMS Provider already present, but no 'V3' argument: $JAVA_HOME/lib/security/java.security"
+    exit 1
   fi
+else
+  # Need to add CMSv3 provider. 
+  # Hunt for the next provider offset
+  let NEXT_PROVIDER=1
+  for PROVIDER in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if grep security.provider.$PROVIDER $JAVA_HOME/lib/security/java.security >/dev/null; then
+      let NEXT_PROVIDER=$NEXT_PROVIDER+1
+    fi
+  done
+
+  # Stash the provider line in a file
+  echo "security.provider.$NEXT_PROVIDER=com.ibm.security.cmskeystore.CMSProvider V3" > /tmp/java.security.append
 fi
-
-# Hunt for the next provider offset
-let NEXT_PROVIDER=1
-for PROVIDER in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
-  if grep security.provider.$PROVIDER $JAVA_HOME/lib/security/java.security >/dev/null; then
-    let NEXT_PROVIDER=$NEXT_PROVIDER+1
-  fi
-done
-
-# Stash the provider line in a file
-echo "security.provider.$NEXT_PROVIDER=com.ibm.security.cmskeystore.CMSProvider V3" > /tmp/java.security.append
 
 if [ $# -eq 0 ]; then
   $JAVA_HOME/bin/ikeycmd -Djava.security.properties=/tmp/java.security.append -help
