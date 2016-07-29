@@ -3,7 +3,7 @@
 # z/os ikeycmd wrapper that "reliably" adds CMS v3 support.
 # Author: covener@apache.org
 
-# This should be a non-WAS JRE.
+# Any modern IBM jre
 JAVA_HOME=/usr/lpp/java/java800/J8.0_64/
 
 # Should not require edits below this line
