@@ -14,11 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Example/sample script to list/remove/install ifixes with a global IM kit. 
-# For a local kit, # see WIP imifixhelper-local.sh
-
 # Change me if needed
 IMCL=/opt/IBM/InstallationManager/eclipse/tools/imcl
+IMCL=/opt/IM/eclipse/tools/imcl
+
+if [ ! -x $IMCL ]; then
+  IIMDL=${IIMDL:-$HOME/iim}
+  IMCL=$IIMDL/tools/imcl
+  INST=$HOME/inst
+fi
 
 
 OP="$1"
@@ -65,22 +69,19 @@ case $OP in
      ;;
 esac
 
-
-# Find the IM package name for the install dir. We need the name to install a fix to it, not the path.
-PACKAGE=`$IMCL listInstalledPackages  -installationDirectory $INSTDIR | egrep ^com.ibm`
-# Find what look like interim fixes
-FIXES=`$IMCL listInstalledPackages  -installationDirectory $INSTDIR | grep WS- | tr '\n' "," | sed -e 's/,/, /'`
+PACKAGE=`$IMCL listInstalledPackages  -installationDirectory $INSTDIR | egrep ^com.ibm|grep -v jdk`
+FIXES=`$IMCL listInstalledPackages  -installationDirectory $INSTDIR | grep WS- | tr '\n' ","`
 
 case $OP in
   list)
     echo "Package: $PACKAGE"
-    echo "Interim Fixes: $FIXES"
+    echo "Interim Fixes: " : $FIXES
+    echo "Available fixes:"
+    $IMCL listAvailableFixes $PACKAGE  -repositories $FIXARG |  egrep ^[89]
     ;;
   install)
-    $IMCL listInstalledPackages  -installationDirectory $INSTDIR
-    FIX=`$IMCL listAvailableFixes $PACKAGE  -repositories $FIXARG |  egrep ^8`
+    FIX=`$IMCL listAvailableFixes $PACKAGE  -repositories $FIXARG |  egrep ^[89]`
     $IMCL install $FIX -repositories $FIXARG -installationDirectory "$INSTDIR" 
-    $IMCL listInstalledPackages  -installationDirectory $INSTDIR
     ;;
   remove)
     $IMCL uninstall $FIXARG -installationDirectory "$INSTDIR" 
