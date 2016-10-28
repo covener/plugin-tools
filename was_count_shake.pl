@@ -9,7 +9,6 @@ my @finished   = ();
 my %pending = ();
 
 my $state = "stackstart";
-my $file = "???";
 my $line = 0;
 
 # Convert WAS timestampes for short deltas.
@@ -25,14 +24,14 @@ sub my_str2time {
 
 
 while(<>) {
-    $file= $ARGV;
     if ($_ =~ m/\[(.*)\] ([0-9a-f]+) SSLUtils.*handleHandshake.*Entry/) { 
 #         print "$_\n";
+         my $file = $ARGV;
          my $t = my_str2time($1);
          if (defined($pending{$2})) { 
              die ("already saw $_");
          }
-         my $v = { start=> $t, startpretty=>$1, pidtid=>$2, begin_line=>$line};
+         my $v = { file=>$file, start=> $t, startpretty=>$1, pidtid=>$2, begin_line=>$line};
          $pending{$2} = $v;
     } 
     elsif ($_ =~ m/\[(.*)\] ([0-9a-f]+) SSLUtils.*handleHandshake Exit/) { 
@@ -45,6 +44,7 @@ while(<>) {
          }
          my $start = $pending{$2}->{'start'};
          my $v = { start=>$start, startpretty=>$pending{$2}->{'startpretty'}, pidtid=>$2, stop=>$t, delta=> ($t - $start), 
+                   file=>$pending{$2}->{'file'}, 
                    end_line=>$line, begin_line=>$pending{$2}->{'begin_line'} };
          push @finished, $v;
          $pending{$2} = undef;
@@ -62,7 +62,7 @@ foreach $r (@finished) {
 sub sed_split() {
     my ($r) = @_;
     return sprintf "sed -e '%s,%s!d' '%s' | grep '%s'",
-           $r->{'begin_line'}, $r->{'end_line'}, $file , $r->{'pidtid'};
+           $r->{'begin_line'}, $r->{'end_line'}, $r->{'file'} , $r->{'pidtid'};
 }
 
 
