@@ -7,9 +7,9 @@ use HTTP::Date; # part of LWP
 
 my @finished   = ();
 my %pending = ();
+my $line = 0;
 
 my $state = "stackstart";
-my $line = 0;
 
 # Convert WAS timestampes for short deltas.
 sub my_str2time {
@@ -22,8 +22,9 @@ sub my_str2time {
    return $rv;
 }
 
+  while(<>) {
+    $line = 0 if eof;
 
-while(<>) {
     if ($_ =~ m/\[(.*)\] ([0-9a-f]+) SSLUtils.*handleHandshake.*Entry/) { 
 #         print "$_\n";
          my $file = $ARGV;
@@ -49,7 +50,7 @@ while(<>) {
          push @finished, $v;
          $pending{$2} = undef;
     } 
- $line++;
+   $line++;
 }
  
 my $r;
