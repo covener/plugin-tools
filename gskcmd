@@ -34,8 +34,8 @@ else
 fi
 
 if [ $# -eq 0 ]; then
-  $JAVA_HOME/bin/ikeycmd -Djava.security.properties=/tmp/java.security.append -help
+  $JAVA_HOME/bin/ikeycmd -DADD_CMS_SERVICE_PROVIDER_ENABLED=true -Djava.security.properties=/tmp/java.security.append -help
 else
-  $JAVA_HOME/bin/ikeycmd -Djava.security.properties=/tmp/java.security.append  "$@"
+  $JAVA_HOME/bin/ikeycmd -DADD_CMS_SERVICE_PROVIDER_ENABLED=true -Djava.security.properties=/tmp/java.security.append  "$@"
 fi
 
