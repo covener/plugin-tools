@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# covener's script to list/install/patch whatever is found in an IM reposository with an unpacked IIM.
+# covener's script to list/install/patch whatever is found 
+# in an IM repository with an global or unzipped IIM.
 
 # Prerequisites to using this script.  
 #  1) unpack IIM for this platform in ~/iim
@@ -32,12 +33,14 @@ if [ $# -lt 1 ]; then
   usage
 fi
 
+# Change to zero to avoid global IIM instal.
+
+GLOBAL=1
 # No configuration below!
 
 IIMDL=${IIMDL:-$HOME/iim}
 IMCL=$IIMDL/tools/imcl
 IMUTILSC=$IIMDL/tools/imutilsc
-GLOBAL=1
 OS=`uname`
 
 if [ -x /opt/csw/bin/wget ]; then
