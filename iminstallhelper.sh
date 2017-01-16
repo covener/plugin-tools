@@ -127,24 +127,30 @@ fi
 listAvailablePackages() { 
   echo "  Determing available packages in $PKGDL..."
   # One time w/o backticks to potentially prompt  
+  set -x
   $IMCL listAvailablePackages -repositories $PKGDL $IMDATA_ARG -secureStorageFile $STORAGE_NATIVE  -masterPasswordFile $MASTER_NATIVE -prompt 
+  set +x
   PKGS=`$IMCL listAvailablePackages -repositories $PKGDL $IMDATA_ARG -secureStorageFile $STORAGE_NATIVE  -masterPasswordFile $MASTER_NATIVE -prompt`
 }
 
 lisInstalledPackages() { 
   echo "  Determing installed packages in $INSTDIR..."
+  set -x
   PACKAGE=`$IMCL listInstalledPackages  -installationDirectory $INSTDIR $IMDATA_ARG | grep com.ibm`
+  set +x
 }
 
 listAvailableFixes() { 
   FIXES=""
   echo "  Determing available fixes in $PKGDL..."
+  set -x
   for PKG in $PACKAGE; do
    FIX=`$IMCL listAvailableFixes $PKG -repositories $PKGDL \
         $IMDATA_ARG \
         -secureStorageFile $STORAGE_NATIVE  -masterPasswordFile $MASTER_NATIVE`
    FIXES="$FIXES $FIX"
   done
+  set +x
 }
 
 installFix() { 
@@ -154,13 +160,14 @@ installFix() {
   else
     $INSTDIR/bin/versionInfo.sh -ifixes
   fi
-
+  set -x
   $IMCL install $PKGS -repositories $PKGDL                   \
         $IMDATA_ARG \
         -installationDirectory "$INSTDIR"                    \
         -acceptLicense \
         -secureStorageFile $STORAGE_NATIVE  -masterPasswordFile $MASTER_NATIVE
 
+  set +x
   if [ -d /cygdrive ]; then
     $INSTDIR/bin/versionInfo.bat -ifixes
   else
