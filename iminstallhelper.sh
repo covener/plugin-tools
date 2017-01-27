@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # covener's script to list/install/patch whatever is found 
 # in an IM repository with an global or unzipped IIM.
+
+ACTION="help"
 
 usage() { 
   echo "$0 list|install|uninstall|update|install-im|install-local-im  [-l] -r some-repo [-i install-root]  -p offering|\"list\""
@@ -24,12 +26,11 @@ usage() {
   exit 1
 }
 
-ACTION=$1;
-shift
-
-if [ $# -lt 1  -a $ACTION != "install-im" ]; then
+if [ $# -lt 1 ]; then
   usage
 fi
+ACTION=$1;
+shift
 
 # Look for a global IIM install by default.
 GLOBAL=1
