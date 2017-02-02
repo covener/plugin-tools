@@ -180,6 +180,7 @@ installFix() {
   fi
 
 }
+
 checkRepoAuth() { 
   if [ ! -d "$PKGDL" -a ! -f "$PKGDL" ]; then
     OUT=`wget --no-check-certificate "$PKGDL" 2>&1`
@@ -267,7 +268,8 @@ if [ -z "$PKGS" ]; then
 fi
 
 
-checkRepoAuth
+# checkRepoAuth
+
 ARCH=`uname -m`
 OPKGS=$PKGS
 
