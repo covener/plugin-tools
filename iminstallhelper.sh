@@ -159,7 +159,9 @@ installFix() {
   if [ -d /cygdrive ]; then
     $INSTDIR/bin/versionInfo.bat -ifixes
   else
-    $INSTDIR/bin/versionInfo.sh -ifixes
+    if [ -f "$INSTDIR/bin/versionInfo.sh" ]; then
+      $INSTDIR/bin/versionInfo.sh -ifixes
+    fi
   fi
   set -x
   $IMCL install $PKGS -repositories $PKGDL                   \
@@ -172,7 +174,9 @@ installFix() {
   if [ -d /cygdrive ]; then
     $INSTDIR/bin/versionInfo.bat -ifixes
   else
-    $INSTDIR/bin/versionInfo.sh -ifixes
+    if [ -f "$INSTDIR/bin/versionInfo.sh" ]; then
+      $INSTDIR/bin/versionInfo.sh -ifixes
+    fi
   fi
 
 }
