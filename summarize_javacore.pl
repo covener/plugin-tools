@@ -12,12 +12,12 @@ while(<>) {
     }
   }
   elsif ($state eq "feed") { 
-    if ($_ !~ m/4XESTACKTRACE/) { 
+    if ($_ !~ m/[456]XESTACKTRACE/) { 
         $state = "print";
         next;
-      }
-      chomp();
-      if (m/^.* at (.+?)\(/) { 
+    }
+    chomp();
+    if (m/^.* at (.+?)\(/) { 
         my $fn = $1;
         $fn =~ s@^java/.*?([^/]+)$@\1@g;
         $fn =~ s@sun/misc/(.+)@\1@g;
@@ -30,8 +30,12 @@ while(<>) {
             $stack = "$stack<$fn";
         }
         next;
-      }
-      die($_);
+    }
+    elsif($_ =~ m/5XESTACKTRACE/) { 
+       # lock held
+       next;
+    }
+    die($_);
   }
   elsif ($state eq "print") { 
     print $stack . "\n\n";
