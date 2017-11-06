@@ -303,6 +303,7 @@ while(nextline()) {
                 WSFO => $threads{$pid . $tid}->{'WSFO'},
                 clusterdown=> $threads{$pid . $tid}->{'clusterdown'},
                 writeerror=> $threads{$pid . $tid}->{'writeerror'},
+                clienterror=> $threads{$pid . $tid}->{'clienterror'},
                 status   => $threads{$pid . $tid}->{'status'},
                 cachecontrol => $threads{$pid . $tid}->{'cachecontrol'},
                 cachecontrolsetcookie => $threads{$pid . $tid}->{'cachecontrolsetcookie'},
@@ -487,6 +488,12 @@ while(nextline()) {
         readpidtid();
         if (defined $threads{$pid . $tid}) {
             $threads{$pid . $tid}->{'writeerror'} = { time=>$timestr, line=>$ln , text=>$1};
+        }
+    }
+    elsif (/(.*(?:write|flush) failed.*)/) { # write failure [to client]
+        readpidtid();
+        if (defined $threads{$pid . $tid}) {
+            $threads{$pid . $tid}->{'clienterror'} = { time=>$timestr, line=>$ln , text=>$1};
         }
     }
     elsif (/serverSetFailoverStatus: Marking (.+) down/) { 
@@ -697,6 +704,11 @@ foreach $r (sort { $$a{'delta'} <=> $$b{'delta'}} @requests) {
         push @why, sprintf "\twhy: write error (forwarding req body?) on line %d: '%s'\n", $r->{'writeerror'}->{'line'}, $r->{'writeerror'}->{'text'} ;
         $printed = 1;
     }
+    if (defined($r->{'clienterror'})) {
+        push @why, sprintf "\twhy: write error (forwarding resp body?) on line %d: '%s'\n", $r->{'clienterror'}->{'line'}, $r->{'clienterror'}->{'text'} ;
+        $printed = 1;
+    }
+
     if (defined($r->{'clusterdown'})) {
         push @why, sprintf "\twhy: cluster marked down on line %d: '%s'\n", $r->{'clusterdown'}->{'line'}, $r->{'clusterdown'}->{'text'} ;
         $printed = 1;
