@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh 
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -35,17 +35,16 @@ fi
 DIR=`mktemp -d`
 
 for OLDKDB in "$@"; do
-gskcapicmd -cert -list -stashed -db $OLDKDB| grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
-| while read line; do 
-   rm -f "$DIR/$line"
-   gskcapicmd -cert -extract -stashed -target "$DIR/$line" -label "$line" -db $OLDKDB
-done
+  gskcapicmd -cert -list -stashed -db $OLDKDB| grep ^\!| cut -d\! -f 2|sed -e s'/"//g' | 
+  while read line; do 
+    rm -f "$DIR/$line"
+    gskcapicmd -cert -extract -stashed -target "$DIR/$line" -label "$line" -db $OLDKDB
+  done
 done
 
 find $DIR -type f | 
-while read CA; do
-   gskcapicmd -cert -add -db $NEWKDB -stashed -file "$CA" -label "`basename "$CA"`"
-done
+  while read CA; do
+    gskcapicmd -cert -add -db $NEWKDB -stashed -file "$CA" -label "`basename "$CA"`"
+  done
 
-
-
+rm -rf "$DIR"
