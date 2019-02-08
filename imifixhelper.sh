@@ -15,8 +15,8 @@
 # limitations under the License.
 
 # Change me if needed
-IMCL=/opt/IBM/InstallationManager/eclipse/tools/imcl
 IMCL=/opt/IM/eclipse/tools/imcl
+IMCL=/opt/IBM/InstallationManager/eclipse/tools/imcl
 
 if [ ! -x $IMCL ]; then
   IIMDL=${IIMDL:-$HOME/iim}
@@ -24,6 +24,8 @@ if [ ! -x $IMCL ]; then
   INST=$HOME/inst
 fi
 
+
+echo "Don't use this script if you also use iminstallhelper!. Use iminstallhelper to install ifixes".
 
 OP="$1"
 INSTDIR="$2"
