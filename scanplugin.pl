@@ -52,7 +52,7 @@ if(!defined($file)) {
 my $opt_debug = $options{d};
 my $opt_all = $options{a};
 
-open (OVERWRITE, ">scanplugin.log") or die "Error opening logfile $!\n";
+open (OVERWRITE, ">$file-scanplugin.log") or die "Error opening logfile $!\n";
 
 $bld1 = "Not Reported";
 $webserver = "Not Reported";
