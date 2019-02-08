@@ -18,10 +18,12 @@ use strict;
 
 my $bytes = 0;
 while (<>) { 
-  if (/chunk of size (.*)$/) { 
+  if (/ Marshalling first line.*/) { 
+     print "Bytes=$bytes\n";
+     $bytes = 0; 
+  }
+  if (/Wrote (\d+).*bytes/) { 
     chomp();
-    $bytes += hex($1) + length($1) + 2;
+    $bytes += $1;
   }
 }
-
-print "Total is $bytes\n";
