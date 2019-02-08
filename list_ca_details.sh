@@ -28,10 +28,19 @@ KDB=$1
 
 DIR=`mktemp -d`
 
+mkdir -p $DIR/ca
+mkdir -p $DIR/personal
+
 gsk8capicmd -cert -list -stashed -db $KDB | grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
 | while read line; do 
-   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/$line" ; 
+   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/ca/$line" ; 
 done
+
+gsk8capicmd -cert -list -stashed -db $KDB | egrep ^\\*?- | sed -e 's/^[-\*\t ]*//g'  \
+| while read line; do 
+   gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/personal/$line" ; 
+done
+
 
 echo "Check out certs in $DIR"
 
