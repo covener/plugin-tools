@@ -26,7 +26,7 @@ fi
 
 KDB=$1
 
-DIR=`mktemp -d`
+DIR=`mktemp -p $PWD/tmp -d`
 
 mkdir -p $DIR/ca
 mkdir -p $DIR/personal
