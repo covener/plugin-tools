@@ -34,11 +34,15 @@ mkdir -p $DIR/personal
 gsk8capicmd -cert -list -stashed -db $KDB | grep ^\!| cut -d\! -f 2|sed -e s'/"//g'  \
 | while read line; do 
    gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/ca/$line" ; 
+   gsk8capicmd -cert -extract -stashed -label "$line" -db $KDB -file "$DIR/ca/$line/.pem" ; 
+
 done
 
 gsk8capicmd -cert -list -stashed -db $KDB | egrep ^\\*?- | sed -e 's/^[-\*\t ]*//g'  \
 | while read line; do 
    gsk8capicmd -cert -details -stashed -label "$line" -db $KDB | tee "$DIR/personal/$line" ; 
+   gsk8capicmd -cert -extract -stashed -label "$line" -db $KDB -file "$DIR/personal/$line/.pem" ; 
+
 done
 
 
