@@ -61,3 +61,8 @@ in WebSphere Application Server.
     Example/Sample web module to generate plugin-cfg.xml without jconsole.
     Source and more info here: https://github.com/covener/plugingen_sample_app
     
+  * simplepct
+   
+    Perform a basic config of the WAS Plugin to IHS/Apache. Note: Not for use with the IHS
+    archive install where this is pre-configured for you.
+    
