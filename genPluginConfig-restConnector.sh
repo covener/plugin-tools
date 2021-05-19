@@ -23,6 +23,15 @@
 
 # Liberty setup hints: https://developer.ibm.com/wasdev/docs/accessing-libertys-jmx-rest-apis/
 
+# <server>
+#  <featureManager>
+#    <feature>restConnector-1.0</feature>
+#  </featureManager>
+#  <quickStartSecurity userName="theUser" userPassword="thePassword"/>
+#  <keyStore id="defaultKeyStore" password="Liberty"/>
+#</server>
+
+
 # Edit this section as desired
 ###########################################################################
 # WebServer details
