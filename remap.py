@@ -33,7 +33,8 @@ DEBUG_SOP=0
 def main(): 
   m = "main"
   apps = []
-  na_apps = []
+  webmods_needed = []
+  webmods_na = []
   dirty = False
 
   if len(sys.argv) < 2:
@@ -42,67 +43,60 @@ def main():
 
   existing_server = sys.argv[0]
   existing_node = sys.argv[1]
+  # As it appears in AdminApp.view
+  existing_ent = "WebSphere:cell=" + getCellName() + ",node=" + existing_node + ",server=" + existing_server 
   new_server = ""
   new_node = ""
+  check_only = True
   if len(sys.argv) == 4:
     new_server = sys.argv[2]
     new_node = sys.argv[3]
+    # As it appears in AdminApp.view
+    newent = "WebSphere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
+    check_only = False
+
 
   for app in listApplications():
-    app = str(app)
-    sop(m,"  Get mappings for %s" %(app))
-    # This does not work for multi-module apps, it gets the output of the first module
-    targets = getServerTargetsForApplication(app)
-    print("Mappings for %s: %s" %(app, targets))
-
-    found = False
-    for server_and_node in targets:
-      sop(m, "    checking %s" %(server_and_node))
-      if (str(server_and_node).startswith(existing_server + "," + existing_node)):
-        print("      WebServer %s mapped to app %s" %(existing_server, app))
-        apps.append(app)
-        found = True
-    if (found == False):
-      print("    WebServer %s not mapped to app %s" %(existing_server, app))
-      na_apps.append(app)
-    for server_and_node in targets:
-      if (str(server_and_node).startswith(new_server + "," + new_node)):
-        print("    New WebServer %s is already mapped to app %s" %(new_server, app))
-        apps.remove(app)
-        na_apps.append(app)
-
-  print("Applications needing new webserver: %s" %(apps))
-  print("Applications not needing new webserver: %s" %(na_apps))
-  if (len(new_server) == 0):
-      return 0
-
-  for app in apps:
     # print (AdminApp.view(app, "-MapModulesToServers"))
     mapmodlist = getAdminAppViewValueList(app, "-MapModulesToServers")
  
-    """
-    # This does not work for multi-module apps, data for the first module is parsed
-    servers = getAdminAppViewValue(app, "-MapModulesToServers", "Server:")
-    module = getAdminAppViewValue(app, "-MapModulesToServers", "Module:")
-    uri = getAdminAppViewValue(app, "-MapModulesToServers", "URI:")
-    """
     for webmod in mapmodlist:
-        print("Webmod "+ str(webmod))
+        print("Check Webmod "+ str(webmod['URI']))
         servers = webmod["Server"]
         module = webmod["Module"]
         uri = webmod["URI"]
 
-        print("Adding server %s to app %s, existing servers %s" %(new_server, app, servers))
+        serverlist = servers.split("+")
+        sop(m, "checking servers " + str(serverlist) + " for exsiting ws " + existing_ent)
+        if (existing_ent in serverlist):
+            sop(m, "  Existing is here")
+            if (newent in serverlist):
+                webmods_na.append(webmod)
+                continue
+            webmods_needed.append(webmod)
+        else:
+            sop(m, "  Existing is NOT here")
+            webmods_na.append(webmod)
 
-        arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + "WebShere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
-        print("Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
+    print("Web Modules needing mapping %s" %([mod['URI'] for mod in webmods_needed]))
+    print("Web Modules not needing mapping %s" %([mod['URI'] for mod in webmods_na]))
+
+    if (check_only):
+        return 0
+
+    for webmod in webmods_needed:
+        print("Adding server %s to app %s, existing servers %s" %(new_server, webmod['URI'], servers))
+        arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + newent
+        sop(m, " . Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
         AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
         dirty = True
 
   if dirty:
-    print("Saving ...")
-    save()
-
+    print("NOT Saving ...")
+    # save()
+    # syncall() ?
+    # restart app? Probably doen't matter if only used with webservers.
+# end of main
 
 getAdminAppViewValueList_REGEX = re.compile('^(\w+): (.+)')
 
