@@ -18,8 +18,10 @@
     If only the first two args are provided, the script summarizes the apps mapped to the existing webserver/node.
 
     /opt/WAS/bin/wsadmin.sh -lang jython -user ... -password  ... -f remap.py -- existing-webserver existing-node [new-webserver  new-webserver-node]
-
+ 
     Note: this script has a full copy of wsadminlib pasted onto the bottom for covnenience.
+
+    Status: WIP
 """
 
 import sys;
