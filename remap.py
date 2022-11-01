@@ -33,6 +33,7 @@ DEBUG_SOP=0
 def main(): 
   m = "main"
   apps = []
+  na_apps = []
   dirty = False
 
   if len(sys.argv) < 2:
@@ -48,6 +49,7 @@ def main():
     new_node = sys.argv[3]
 
   for app in listApplications():
+    app = str(app)
     sop(m,"  Get mappings for %s" %(app))
     # This does not work for multi-module apps, it gets the output of the first module
     targets = getServerTargetsForApplication(app)
@@ -62,17 +64,16 @@ def main():
         found = True
     if (found == False):
       print("    WebServer %s not mapped to app %s" %(existing_server, app))
+      na_apps.append(app)
     for server_and_node in targets:
       if (str(server_and_node).startswith(new_server + "," + new_node)):
         print("    New WebServer %s is already mapped to app %s" %(new_server, app))
         apps.remove(app)
+        na_apps.append(app)
 
   print("Applications needing new webserver: %s" %(apps))
+  print("Applications not needing new webserver: %s" %(na_apps))
   if (len(new_server) == 0):
-      return 0
-
-  if (len(apps) == 0):
-      print("No applications need new webserver")
       return 0
 
   for app in apps:
