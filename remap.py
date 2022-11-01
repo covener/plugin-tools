@@ -84,13 +84,15 @@ def main():
       print("Web Modules without webserver %s: %s" %(existing_server, [mod['URI'] for mod in webmods_na]))
       return 0
     
+  print("\n")
   print("Web Modules needing mapping %s" %([mod['URI'] for mod in webmods_needed]))
   print("Web Modules not needing mapping %s" %([mod['URI'] for mod in webmods_na]))
+  print("\n")
     
   for webmod in webmods_needed:
-      print("Adding server %s to app %s, existing servers %s" %(new_server, webmod['URI'], servers))
+      print("  Adding server %s to app %s, existing servers %s" %(new_server, webmod['URI'], servers))
       arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + newent
-      sop(m, " . Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
+      sop(m, "    Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
       AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
       dirty = True
 
