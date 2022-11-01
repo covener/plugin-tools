@@ -47,13 +47,12 @@ def main():
   existing_ent = "WebSphere:cell=" + getCellName() + ",node=" + existing_node + ",server=" + existing_server 
   new_server = ""
   new_node = ""
-  check_only = True
+  newent = ""
   if len(sys.argv) == 4:
     new_server = sys.argv[2]
     new_node = sys.argv[3]
     # As it appears in AdminApp.view
     newent = "WebSphere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
-    check_only = False
 
 
   for app in listApplications():
@@ -70,26 +69,30 @@ def main():
         sop(m, "checking servers " + str(serverlist) + " for exsiting ws " + existing_ent)
         if (existing_ent in serverlist):
             sop(m, "  Existing is here")
-            if (newent in serverlist):
+            if (newent and newent in serverlist):
                 webmods_na.append(webmod)
                 continue
             webmods_needed.append(webmod)
         else:
             sop(m, "  Existing is NOT here")
             webmods_na.append(webmod)
+    # end webmod in app
+  # end app
 
-    print("Web Modules needing mapping %s" %([mod['URI'] for mod in webmods_needed]))
-    print("Web Modules not needing mapping %s" %([mod['URI'] for mod in webmods_na]))
-
-    if (check_only):
-        return 0
-
-    for webmod in webmods_needed:
-        print("Adding server %s to app %s, existing servers %s" %(new_server, webmod['URI'], servers))
-        arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + newent
-        sop(m, " . Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
-        AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
-        dirty = True
+  if (not newent):
+      print("Web Modules with webserver %s: %s" %(existing_server, [mod['URI'] for mod in webmods_needed]))
+      print("Web Modules without webserver %s: %s" %(existing_server, [mod['URI'] for mod in webmods_na]))
+      return 0
+    
+  print("Web Modules needing mapping %s" %([mod['URI'] for mod in webmods_needed]))
+  print("Web Modules not needing mapping %s" %([mod['URI'] for mod in webmods_na]))
+    
+  for webmod in webmods_needed:
+      print("Adding server %s to app %s, existing servers %s" %(new_server, webmod['URI'], servers))
+      arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + newent
+      sop(m, " . Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
+      AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
+      dirty = True
 
   if dirty:
     print("NOT Saving ...")
