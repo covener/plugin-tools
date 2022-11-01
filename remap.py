@@ -25,13 +25,18 @@
 """
 
 import sys;
+import re;
 
-def main():
+# wsadminlib debugging
+DEBUG_SOP=0
+
+def main(): 
+  m = "main"
   apps = []
   dirty = False
 
   if len(sys.argv) < 2:
-    print "Usage: existing-webserver existing-node [new-webserver new-webserver-node]"
+    print("Usage: existing-webserver existing-node [new-webserver new-webserver-node]")
     return 1
 
   existing_server = sys.argv[0]
@@ -43,46 +48,97 @@ def main():
     new_node = sys.argv[3]
 
   for app in listApplications():
-    print "  Get mappings for %s" %(app)
+    sop(m,"  Get mappings for %s" %(app))
+    # This does not work for multi-module apps, it gets the output of the first module
     targets = getServerTargetsForApplication(app)
-    print "  Mappings for %s: %s %s" %(app, type(targets), targets)
+    print("Mappings for %s: %s" %(app, targets))
 
     found = False
     for server_and_node in targets:
-      print "    checking %s" %(server_and_node)
+      sop(m, "    checking %s" %(server_and_node))
       if (str(server_and_node).startswith(existing_server + "," + existing_node)):
-        print "    WebServer %s mapped to app %s" %(existing_server, app)
+        print("      WebServer %s mapped to app %s" %(existing_server, app))
         apps.append(app)
         found = True
     if (found == False):
-      print "    WebServer %s not mapped to app %s" %(existing_server, app)
+      print("    WebServer %s not mapped to app %s" %(existing_server, app))
     for server_and_node in targets:
       if (str(server_and_node).startswith(new_server + "," + new_node)):
-        print "    New WebServer %s is already mapped to app %s" %(new_server, app)
+        print("    New WebServer %s is already mapped to app %s" %(new_server, app))
         apps.remove(app)
 
+  print("Applications needing new webserver: %s" %(apps))
   if (len(new_server) == 0):
-      print "Applications needing new webserver: %s" %(apps)
+      return 0
+
+  if (len(apps) == 0):
+      print("No applications need new webserver")
       return 0
 
   for app in apps:
-    # print AdminApp.view(app, "-MapModulesToServers");
-   
+    # print (AdminApp.view(app, "-MapModulesToServers"))
+    mapmodlist = getAdminAppViewValueList(app, "-MapModulesToServers")
+ 
+    """
+    # This does not work for multi-module apps, data for the first module is parsed
     servers = getAdminAppViewValue(app, "-MapModulesToServers", "Server:")
     module = getAdminAppViewValue(app, "-MapModulesToServers", "Module:")
     uri = getAdminAppViewValue(app, "-MapModulesToServers", "URI:")
-    print "Adding server %s to app %s, existing servers %s" %(new_server, app, servers)
+    """
+    for webmod in mapmodlist:
+        print("Webmod "+ str(webmod))
+        servers = webmod["Server"]
+        module = webmod["Module"]
+        uri = webmod["URI"]
 
-    arg =  str(module) + " " + str(uri) + " " + str(servers) + "+" + "WebShere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
-    print "Current servers for app for AdminApp.edit -MapModulesToServers: %s" %(arg)
-    print "Arg for AdminApp.edit -MapModulesToServers: %s" %(arg)
+        print("Adding server %s to app %s, existing servers %s" %(new_server, app, servers))
 
-    AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
-    dirty = True
+        arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + "WebShere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
+        print("Current servers for app for AdminApp.edit -MapModulesToServers: %s" %(arg))
+        print("Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
+
+        AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
+        dirty = True
+
   if dirty:
-    print "not saving yet..."
-    # save()
+    print("Saving ...")
+    save()
 
+
+getAdminAppViewValueList_REGEX = re.compile('^(\w+): (.+)')
+
+def getAdminAppViewValueList(appname, keyname):
+    """ AdminApp.view returns N stanzas per app,  one per module. 
+        Just parse them all for a given "keyname" rather than making you ask for one a-la
+        getAdminAppView() 
+    """ 
+    m = "getAdminAppViewValueList"
+    allmodules = []
+    mymod = {}
+    sawfirstmodule = False
+
+    verboseString = AdminApp.view(appname, [keyname])
+    # sop(m,"verboseString=%s" % ( verboseString ))
+    verboseStringList = _splitlines(verboseString)
+    for index,str in enumerate(verboseStringList):
+        sop(",", "str=>>>%s<<<" % ( str ))
+        if str.startswith("Module:"):
+            sawfirstmodule = True
+            sop(",", "found a module %s" %(str))
+            if (len(mymod) > 0):
+                allmodules.append(mymod)
+                mymod= {}
+        if (False == sawfirstmodule):
+            continue
+            
+        matches = getAdminAppViewValueList_REGEX.match(str)
+        if (matches and len(matches.groups()) > 0):
+            sop(",", " add to dict %s->%s" %(matches.group(1), matches.group(2)))
+            mymod[matches.group(1)] = matches.group(2).strip()
+    if len(module):
+        allmodules.append(mymod)
+
+    return allmodules
 
 """
 Introduction
@@ -3933,6 +3989,7 @@ def getDeploymentAutoStart(deploymentname,deploymenttargetname):
     sop(m,"Exit. Returning rc=%i" % ( rc ))
     return rc
 
+
 def getAdminAppViewValue(appname, keyname, parsename):
     """This helper method returns the value for the specified application
     and key name, as fetched by AdminApp.view().
@@ -6886,7 +6943,6 @@ def getSopTimestamp():
     formatting_string = "[" + "%" + "Y-" + "%" + "m" + "%" + "d-" + "%" + "H" + "%" + "M-" + "%" + "S00]"
     return time.strftime(formatting_string)
 
-DEBUG_SOP=0
 def enableDebugMessages():
     """
     Enables tracing by making future calls to the sop() method actually print messages.
