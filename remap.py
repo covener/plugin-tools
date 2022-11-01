@@ -95,9 +95,7 @@ def main():
         print("Adding server %s to app %s, existing servers %s" %(new_server, app, servers))
 
         arg =  "'" + str(module) + "'" + str(uri) + " " + str(servers) + "+" + "WebShere:cell=" + getCellName() + ",node=" + new_node + ",server=" + new_server 
-        print("Current servers for app for AdminApp.edit -MapModulesToServers: %s" %(arg))
         print("Arg for AdminApp.edit -MapModulesToServers: %s" %(arg))
-
         AdminApp.edit(app, "[ -MapModulesToServers [[ " + arg + " ]]]")
         dirty = True
 
