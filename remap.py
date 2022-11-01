@@ -14,14 +14,14 @@
    limitations under the License.
 
 
-    This script maps all applications mapped to "existing-webserver,existing-node" to a new webserver name/node.  
-    If only the first two args are provided, the script summarizes the apps mapped to the existing webserver/node.
+   This script maps all applications mapped to an existing webserver/node to a new webserver/node.
+   If only the first two args are provided, the script summarizes the apps mapped to the existing webserver/node.
 
-    /opt/WAS/bin/wsadmin.sh -lang jython -user ... -password  ... -f remap.py -- existing-webserver existing-node [new-webserver  new-webserver-node]
+   /opt/WAS/bin/wsadmin.sh -lang jython -user ... -password  ... -f remap.py -- existing-webserver existing-node [new-webserver  new-webserver-node]
  
-    Note: this script has a full copy of wsadminlib pasted onto the bottom for covnenience.
+   Note: this script has a full copy of wsadminlib pasted onto the bottom for convenience.
 
-    Status: WIP
+   Status: WIP
 """
 
 import sys;
